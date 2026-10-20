@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo 'Usage: nocapture [show|hide|stop|doctor|--help]'
+  echo 'Usage: nocapture [show|hide|stop|status|doctor|--help]'
   echo 'Without arguments, toggle the Noctalia capture toolbar.'
 }
 
@@ -17,7 +17,7 @@ case "$action" in
   usage
   exit 0
   ;;
-toggle | show | hide | stop | doctor) ;;
+toggle | show | hide | stop | status | doctor) ;;
 *)
   usage >&2
   exit 2
@@ -33,27 +33,23 @@ case "$action" in
 toggle) exec noctalia msg panel-toggle 0xhckr/nocapture:toolbar ;;
 show) exec noctalia msg panel-open 0xhckr/nocapture:toolbar ;;
 hide) exec noctalia msg panel-close 0xhckr/nocapture:toolbar ;;
-stop) exec noctalia msg plugin noctalia/screen_recorder:service all stop ;;
+stop | status) exec nocapture-engine "$action" ;;
 doctor)
   noctalia --version
   plugins=$(noctalia msg plugins list)
   failed=0
-  for plugin in 0xhckr/nocapture noctalia/screen_recorder; do
-    if grep -Eq "^${plugin} .* enabled$" <<<"$plugins"; then
-      echo "$plugin: enabled"
-    else
-      echo "$plugin: not enabled" >&2
-      failed=1
-    fi
-  done
-  for tool in niri gpu-screen-recorder slurp; do
-    if command -v "$tool" >/dev/null 2>&1; then
-      echo "$tool: available"
-    else
-      echo "$tool: missing" >&2
-      failed=1
-    fi
-  done
+  if grep -Eq '^0xhckr/nocapture .* enabled$' <<<"$plugins"; then
+    echo '0xhckr/nocapture: enabled'
+  else
+    echo '0xhckr/nocapture: not enabled' >&2
+    failed=1
+  fi
+  if command -v nocapture-engine >/dev/null 2>&1; then
+    echo 'nocapture-engine: available'
+  else
+    echo 'nocapture-engine: missing' >&2
+    failed=1
+  fi
   exit "$failed"
   ;;
 esac

@@ -15,14 +15,39 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          python = pkgs.python3.withPackages (ps: [ ps.pillow ]);
+          gpuRecorder = pkgs.gpu-screen-recorder.overrideAttrs (old: {
+            patches = (old.patches or [ ]) ++ [ ./patches/window-only-portal.patch ];
+          });
+          engine = pkgs.writeShellApplication {
+            name = "nocapture-engine";
+            runtimeInputs = [
+              pkgs.ffmpeg-headless
+              gpuRecorder
+              pkgs.grim
+              pkgs.slurp
+              pkgs.wl-clipboard
+              pkgs.niri
+            ];
+            text = ''
+              export PYTHONPATH=${./backend}
+              exec ${python}/bin/python -m nocapture_backend "$@"
+            '';
+          };
           launcher = pkgs.writeShellApplication {
             name = "nocapture";
-            runtimeInputs = [ pkgs.gnugrep ];
+            runtimeInputs = [
+              pkgs.gnugrep
+              engine
+            ];
             text = builtins.readFile ./bin/nocapture;
           };
           package = pkgs.symlinkJoin {
             name = "nocapture";
-            paths = [ launcher ];
+            paths = [
+              launcher
+              engine
+            ];
             postBuild = ''
               mkdir -p "$out/share/noctalia/plugins"
               cp -r ${./nocapture} "$out/share/noctalia/plugins/nocapture"
@@ -45,6 +70,9 @@
             pkgs.shfmt
             pkgs.shellcheck
             pkgs.nixfmt
+            pkgs.ruff
+            pkgs.ffmpeg-headless
+            python
           ];
           app = name: text: {
             type = "app";
@@ -61,8 +89,11 @@
             stylua --check nocapture tests/*.lua
             shfmt -i 2 -d bin/nocapture tests/cli.sh
             shellcheck bin/nocapture tests/cli.sh
+            ruff check backend tests
+            ruff format --check backend tests
             lua tests/run.lua
             bash tests/cli.sh
+            PYTHONPATH=backend python -m unittest discover -s tests -p 'test_*.py'
           '';
         in
         {
@@ -91,11 +122,17 @@
             program = nixpkgs.lib.getExe p.package;
           };
           dev = p.app "nocapture-dev" ''exec bash bin/nocapture "$@"'';
-          test = p.app "nocapture-test" ''lua tests/run.lua "$@"; bash tests/cli.sh'';
+          test = p.app "nocapture-test" ''
+            lua tests/run.lua
+            bash tests/cli.sh
+            PYTHONPATH=backend python -m unittest discover -s tests -p 'test_*.py' "$@"
+          '';
           check = p.app "nocapture-check" p.check;
           fmt = p.app "nocapture-fmt" ''
             stylua nocapture tests/*.lua
             shfmt -i 2 -w bin/nocapture tests/cli.sh
+            ruff check --select I --fix backend tests
+            ruff format backend tests
             nixfmt flake.nix
           '';
         }

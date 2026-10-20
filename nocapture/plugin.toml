@@ -1,18 +1,62 @@
 id = "0xhckr/nocapture"
 name = "Nocapture"
-version = "0.1.0"
+version = "0.2.0"
 plugin_api = 24
 author = "0xhckr"
 license = "MIT"
 icon = "screenshot"
 description = "A screenshot and recording toolbar for Niri and Noctalia."
-dependencies = ["niri", "gpu-screen-recorder", "slurp"]
+dependencies = ["nocapture-engine"]
+
+[[setting]]
+key = "screenshot_directory"
+type = "folder"
+label_key = "settings.screenshot_directory"
+default = "~/Pictures/Nocapture"
+
+[[setting]]
+key = "recording_directory"
+type = "folder"
+label_key = "settings.recording_directory"
+default = "~/Videos/Nocapture"
+
+[[setting]]
+key = "padding"
+type = "int"
+label_key = "settings.padding"
+default = 96
+min = 0
+max = 512
+
+[[setting]]
+key = "fps"
+type = "int"
+label_key = "settings.fps"
+default = 30
+min = 1
+max = 120
+
+[[setting]]
+key = "gif_fps"
+type = "int"
+label_key = "settings.gif_fps"
+default = 15
+min = 1
+max = 30
+
+[[setting]]
+key = "gif_width"
+type = "int"
+label_key = "settings.gif_width"
+default = 1280
+min = 16
+max = 3840
 
 [[panel]]
 id = "toolbar"
 entry = "toolbar.luau"
-width = 640
-height = 180
+width = 760
+height = 320
 placement = "floating"
 position = "bottom_center"
 keyboard_focus = "exclusive"

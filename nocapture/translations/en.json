@@ -1,0 +1,8 @@
+{
+  "settings.screenshot_directory": "Screenshot folder",
+  "settings.recording_directory": "Recording folder",
+  "settings.padding": "Window padding",
+  "settings.fps": "Video frame rate",
+  "settings.gif_fps": "GIF frame rate",
+  "settings.gif_width": "Maximum GIF width"
+}

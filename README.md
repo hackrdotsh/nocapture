@@ -1,58 +1,85 @@
 # Nocapture
 
-A native Noctalia v5 capture toolbar inspired by macOS's **⌘⇧5**, initially for
-Niri on Wayland. One floating panel selects screenshot or recording, then region,
-display, or window. It uses Noctalia's palette and native controls.
+A native Noctalia v5 capture toolbar for Niri/Wayland, inspired by macOS's **⌘⇧5**.
 
-## First version
+## Capture modes
 
-- Region and display screenshots use Noctalia's built-in capture UI and output settings.
-- Window screenshots capture Niri's focused window, using Niri's output settings.
-- Recording uses the official `noctalia/screen_recorder` service. Region selection
-  uses slurp; display captures the focused monitor; window mode opens the desktop
-  portal picker (which may also offer monitors).
-- Stop recording is always available; this version does not display recording
-  status or a timer. The official recorder widget can provide those.
-- The toolbar closes before invoking a capture. Escape dismisses it.
+| Target | PNG screenshot | MP4 video | Animated GIF | Audio |
+|---|---|---|---|---|
+| Selected region | Yes | Yes | Yes | None, system, microphone, or both |
+| Window | Yes | Yes, through a window-only portal picker | Yes | None or one application's audio |
+| Full display, including all visible windows | Yes | Yes | Yes | None, system, microphone, or both |
 
-This is an initial implementation, not full macOS feature parity. No annotation,
-countdown, unified save destination, or custom selection overlay yet. Capture
-compatibility depends on your compositor, GPU, portal backend, and installed
-versions. Noctalia v4 is not supported.
+Window screenshots can include the **current Noctalia wallpaper** as a padded
+background and an optional **macOS-inspired soft shadow**. Shadow-only exports
+retain transparent space around the window. Padding is configurable.
 
-## Try it
+Select **Screenshot**, **Video**, or **GIF**, then a target. For window screenshots,
+choose a window from the list. For window recordings, choose the window in the
+system picker; its contents are captured rather than a rectangle of the desktop.
+Moving or covering it does not intentionally change the source to other windows.
 
-Requirements: running Noctalia v5 with plugin API 24 or newer, Niri, native
-`gpu-screen-recorder` and `slurp` on **Noctalia's PATH**, and a working ScreenCast
-portal for window recording. The recorder plugin must support IPC source overrides
-(`start region`, `start focused`, `start portal`; upstream 1.3.6 does).
+**Application audio is explicit:** choose the application whose audio belongs to
+the window you select. The backend captures that application's audio, not the
+system mix. Play audio before opening the toolbar so the application appears in
+the list. Applications can share audio across multiple windows; isolation is by
+application name, not by tab or individual window. If no source is available,
+Nocapture fails rather than falling back to system audio.
 
-From this repository, after reviewing the local plugin source:
+GIFs have no audio. Recording first creates an MP4, then builds a palette and
+converts it to a looping GIF on stop. The toolbar reports conversion in progress.
+The source video is retained if conversion fails.
+
+## Install and run
+
+Build with Nix, then install `packages.<system>.default` through Home Manager or
+your preferred Nix profile workflow. The package includes `nocapture`,
+`nocapture-engine`, the plugin, and runtime dependencies. Both executables must
+be on **Noctalia's PATH**, not just in a terminal's development shell.
+
+```sh
+nix build
+./result/bin/nocapture --help
+```
+
+After reviewing the plugin, register the checkout for hot reload:
 
 ```sh
 noctalia msg plugins source add nocapture-dev path "$PWD"
 noctalia msg plugins enable 0xhckr/nocapture
-noctalia msg plugins enable noctalia/screen_recorder
-nix run . -- doctor
-nix run .
+nocapture
 ```
 
-These commands change Noctalia's local plugin configuration; the project does not
-run them automatically. Lua edits hot-reload. Reload Noctalia's config after
-manifest edits. Disabling or reloading the official recorder stops active captures.
+These commands change your Noctalia configuration; builds and tests do not run
+them automatically. The packaged plugin is also available at
+`result/share/noctalia/plugins/nocapture`. Register the parent directory as a path
+source if you want the built version rather than a live checkout.
 
-Optional bar widget, in your Noctalia configuration:
+Noctalia v5 with plugin API 24 or newer is required; v4 is not supported. Region
+and display recording use GPU Screen Recorder's KMS capture and need its host
+permissions. On NixOS, the usual setup is:
 
-```toml
-[widget.nocapture]
-type = "0xhckr/nocapture:bar"
+```nix
+programs.gpu-screen-recorder.enable = true;
 ```
 
-Add `"nocapture"` to a bar's `start`, `center`, or `end` list. The toolbar also
-works without a bar widget.
+This creates a privileged capture-helper wrapper; review that permission before
+enabling it. Nocapture does not enable it, run sudo, or change your system config.
+Window recording instead requires a desktop portal implementing **window**
+ScreenCast and PipeWire. A portal without window support is rejected.
 
-For a Niri keybinding, first install the package with your preferred Nix/Home
-Manager workflow so `nocapture` is on PATH, then add:
+The bundled GPU Screen Recorder has a small, source-pinned Nix patch:
+`-w portal` requests windows only and rejects unsupported source types. Region
+and display capture remain unchanged. This prevents the window picker from
+offering a monitor capture as a substitute. Nocapture uses GPU encoding with
+the backend's CPU fallback if GPU encoding is unavailable.
+
+Nocapture owns its recorder process and a private control socket. It does **not**
+use or require `noctalia/screen_recorder`, change its settings, or stop its
+recordings. Do not run two capture engines concurrently if your GPU cannot
+support that workload.
+
+Optional Niri binding once installed:
 
 ```kdl
 binds {
@@ -60,26 +87,43 @@ binds {
 }
 ```
 
-`nix build` includes the plugin at `result/share/noctalia/plugins/nocapture` and
-the launcher at `result/bin/nocapture`. Register `result/share/noctalia/plugins`
-as a Noctalia path source if using the built package instead of this checkout.
-The package does not replace or bundle your running Noctalia shell.
+Optional Noctalia bar widget:
 
-## Commands
-
-```sh
-nocapture           # Toggle toolbar
-nocapture show      # Open toolbar
-nocapture hide      # Close toolbar
-nocapture stop      # Stop the official recorder's current recording
-nocapture doctor    # Check plugins and native capture tools
+```toml
+[widget.nocapture]
+type = "0xhckr/nocapture:bar"
 ```
 
-Screenshot destinations and clipboard behavior belong to `[shell.screenshot]`
-in Noctalia; window screenshots use Niri's `screenshot-path`. Recording options,
-audio sources, and destinations belong to the official recorder's settings.
+Add `"nocapture"` to a bar's `start`, `center`, or `end` list. No bar widget is
+required to use the toolbar or stop a recording.
 
-## Development
+## Settings and commands
+
+The plugin settings configure screenshot/recording folders, window padding,
+video FPS, GIF FPS, and maximum GIF width. Defaults: `~/Pictures/Nocapture`,
+`~/Videos/Nocapture`, 96px padding, 30 FPS video, and 15 FPS/1280px GIFs.
+Screenshots are saved and copied to the clipboard. Captures use unique filenames.
+
+```sh
+nocapture                 # Toggle toolbar
+nocapture show            # Open toolbar (also while recording)
+nocapture hide            # Close toolbar, without stopping a recording
+nocapture stop            # Finalize only Nocapture's recording
+nocapture status          # JSON state: starting/recording/stopping/converting/saved/error
+nocapture doctor          # Check shell/plugin/engine presence, not capture permissions
+
+nocapture-engine screenshot window --wallpaper --shadow
+nocapture-engine record region --audio system
+nocapture-engine record display --output eDP-1 --format gif
+nocapture-engine record window --audio application --application 'Firefox'
+```
+
+Direct `record` runs in the foreground until stopped with Ctrl+C or `nocapture
+stop`. The Noctalia UI runs it in the background. Selection cancellation produces
+no completed capture. Stopping during GIF conversion does not cancel conversion.
+Worker diagnostics live in `$XDG_RUNTIME_DIR/nocapture-<uid>/recording.log`.
+
+## Development and verification
 
 ```sh
 direnv allow
@@ -87,28 +131,33 @@ nix develop
 nix run .#fmt
 nix run .#check
 nix flake check
-nix build
-nix run . -- --help
+nix run .#test
+noctalia plugins lint nocapture
 ```
 
-Development apps run from the repository root. `.#dev` runs the source launcher;
-`.#test` runs behavioral tests. Both Linux x86-64 and ARM64 are declared; only
-available builders are tested. StyLua formats the Lua-compatible Luau sources.
+Development apps run from the repository root. `.#dev` runs the launcher source.
+The tests exercise the actual Luau scripts with a mocked host; Python tests check
+image pixels, real FFmpeg GIF conversion, and subprocess start/stop/single-owner
+behavior using a synthetic recorder. No real desktop or microphone is captured
+by tests. x86-64 and ARM64 Linux are declared; only available builders are tested.
 
-`tests/run.lua` exercises the actual plugin scripts with a mock host: mode routing,
-close-before-capture, duplicate clicks, missing tools, disabled recorder, stale
-callbacks, and command failures. `tests/cli.sh` checks the real launcher with a
-fake Noctalia executable. These are not compositor integration tests.
+Before calling live capture verified, manually check all three targets on Niri:
+cancel selectors, inspect PNG/clipboard output, compare the window background
+to its display's wallpaper, play MP4/GIF output, move/occlude a recorded window,
+and play two applications simultaneously to verify audio isolation. Repeat with
+mixed-scale monitors. Build success and synthetic media tests do not establish
+compositor, permission, GPU, or portal compatibility.
 
-Before calling capture behavior verified, test the live toolbar on Niri: cancel
-both selectors; capture all three targets; inspect the PNG and clipboard; record
-each target, stop, and play the MP4; confirm the toolbar is absent from the
-capture; repeat on mixed-scale displays. Never commit the captures.
+Current limitations: no annotation editor, countdown, combined multi-monitor
+desktop video, or automatic window-to-audio mapping. Full display means one
+selected display, not all connected monitors. The visual toolbar and real
+capture/audio paths still require live verification.
 
 ## Upstream contracts
 
 - [Noctalia plugin API](https://docs.noctalia.dev/noctalia/plugins/development/)
-- [Official recorder](https://github.com/noctalia-dev/official-plugins/tree/main/screen_recorder)
-- [Noctalia screenshot widget](https://docs.noctalia.dev/noctalia/bar/widgets/screenshot/)
+- [GPU Screen Recorder](https://git.dec05eba.com/gpu-screen-recorder/about/)
+- [ScreenCast portal](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.ScreenCast.html)
 
-MIT licensed.
+Nocapture is MIT licensed. Runtime dependencies retain their own licenses;
+GPU Screen Recorder is GPL-3.0-only.

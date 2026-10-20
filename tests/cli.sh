@@ -14,6 +14,7 @@ fi
 exit "${NOCAPTURE_TEST_EXIT:-0}"
 MOCK
 chmod +x "$scratch/noctalia"
+cp "$scratch/noctalia" "$scratch/nocapture-engine"
 export PATH="$scratch:$PATH"
 
 check_command() {
@@ -26,17 +27,11 @@ check_command() {
 check_command 'msg panel-toggle 0xhckr/nocapture:toolbar'
 check_command 'msg panel-open 0xhckr/nocapture:toolbar' show
 check_command 'msg panel-close 0xhckr/nocapture:toolbar' hide
-check_command 'msg plugin noctalia/screen_recorder:service all stop' stop
+check_command 'stop' stop
+check_command 'status' status
 bash bin/nocapture --help >/dev/null
 
-for tool in niri gpu-screen-recorder slurp; do
-  cp "$scratch/noctalia" "$scratch/$tool"
-done
 bash bin/nocapture doctor >/dev/null
-if NOCAPTURE_TEST_RECORDER=disabled bash bin/nocapture doctor >/dev/null 2>&1; then
-  echo 'Doctor accepted a disabled recorder' >&2
-  exit 1
-fi
 
 if bash bin/nocapture invalid >/dev/null 2>&1; then
   echo 'Invalid action succeeded' >&2

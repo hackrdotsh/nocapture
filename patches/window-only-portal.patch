@@ -1,0 +1,26 @@
+diff --git a/src/capture/portal.c b/src/capture/portal.c
+--- a/src/capture/portal.c
++++ b/src/capture/portal.c
+@@ -202,7 +202,7 @@ static int gsr_capture_portal_setup_dbus(gsr_capture_portal *self, int *pipewire_fd,
+     }
+ 
+     gsr_log(GSR_LOG_LEVEL_INFO, "gsr_capture_portal_setup_dbus: SelectSources");
+-    response_status = gsr_dbus_screencast_select_sources(&self->dbus, self->session_handle, GSR_PORTAL_CAPTURE_TYPE_ALL, self->params.record_cursor ? GSR_PORTAL_CURSOR_MODE_METADATA : GSR_PORTAL_CURSOR_MODE_HIDDEN);
++    response_status = gsr_dbus_screencast_select_sources(&self->dbus, self->session_handle, GSR_PORTAL_CAPTURE_TYPE_WINDOW, self->params.record_cursor ? GSR_PORTAL_CURSOR_MODE_METADATA : GSR_PORTAL_CURSOR_MODE_HIDDEN);
+     if(response_status != 0) {
+         gsr_log(GSR_LOG_LEVEL_ERROR, "gsr_capture_portal_setup_dbus: SelectSources failed");
+         return response_status;
+diff --git a/src/dbus.c b/src/dbus.c
+--- a/src/dbus.c
++++ b/src/dbus.c
+@@ -647,6 +647,10 @@ int gsr_dbus_screencast_select_sources(gsr_dbus *self, const char *session_handle,
+     if(available_source_types == 0)
+         gsr_log(GSR_LOG_LEVEL_ERROR, "gsr_dbus_screencast_select_sources: no source types are available");
+     capture_type = unset_unsupported_capture_types(capture_type, available_source_types);
++    if(capture_type == 0) {
++        gsr_log(GSR_LOG_LEVEL_ERROR, "Nocapture: the desktop portal does not support window capture");
++        return -1;
++    }
+ 
+     uint32_t available_cursor_modes = 0;
+     gsr_dbus_desktop_portal_get_property(self, "org.freedesktop.portal.ScreenCast", "AvailableCursorModes", &available_cursor_modes);
