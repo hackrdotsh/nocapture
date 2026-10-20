@@ -56,6 +56,7 @@
             '';
             meta = {
               description = "Capture toolbar for Noctalia and Niri";
+              homepage = "https://github.com/hackrdotsh/nocapture";
               license = pkgs.lib.licenses.mit;
               platforms = systems;
               mainProgram = "nocapture";

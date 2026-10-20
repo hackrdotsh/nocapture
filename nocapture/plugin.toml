@@ -1,8 +1,8 @@
-id = "0xhckr/nocapture"
+id = "hackrdotsh/nocapture"
 name = "Nocapture"
 version = "0.2.0"
 plugin_api = 24
-author = "0xhckr"
+author = "hackrdotsh"
 license = "MIT"
 icon = "screenshot"
 description = "A screenshot and recording toolbar for Niri and Noctalia."

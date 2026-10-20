@@ -151,13 +151,13 @@ start = []
 center = []
 end = []
 [plugins]
-enabled = ["0xhckr/nocapture"]
+enabled = ["hackrdotsh/nocapture"]
 auto_update = "none"
 [[plugins.source]]
 name = "verification"
 kind = "path"
 location = "{package}/share/noctalia/plugins"
-[plugin_settings."0xhckr/nocapture"]
+[plugin_settings."hackrdotsh/nocapture"]
 screenshot_directory = "{root}/captures"
 recording_directory = "{root}/captures"
 ''')

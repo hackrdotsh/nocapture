@@ -2,6 +2,8 @@
 
 A native Noctalia v5 capture toolbar for Niri/Wayland, inspired by macOS's **⌘⇧5**.
 
+Repository: [hackrdotsh/nocapture](https://github.com/hackrdotsh/nocapture).
+
 ## Capture modes
 
 | Target | PNG screenshot | MP4 video | Animated GIF | Audio |
@@ -46,7 +48,7 @@ After reviewing the plugin, register the checkout for hot reload:
 
 ```sh
 noctalia msg plugins source add nocapture-dev path "$PWD"
-noctalia msg plugins enable 0xhckr/nocapture
+noctalia msg plugins enable hackrdotsh/nocapture
 nocapture
 ```
 
@@ -91,7 +93,7 @@ Optional Noctalia bar widget:
 
 ```toml
 [widget.nocapture]
-type = "0xhckr/nocapture:bar"
+type = "hackrdotsh/nocapture:bar"
 ```
 
 Add `"nocapture"` to a bar's `start`, `center`, or `end` list. No bar widget is

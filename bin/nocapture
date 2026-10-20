@@ -30,18 +30,18 @@ if ! command -v noctalia >/dev/null 2>&1; then
 fi
 
 case "$action" in
-toggle) exec noctalia msg panel-toggle 0xhckr/nocapture:toolbar ;;
-show) exec noctalia msg panel-open 0xhckr/nocapture:toolbar ;;
-hide) exec noctalia msg panel-close 0xhckr/nocapture:toolbar ;;
+toggle) exec noctalia msg panel-toggle hackrdotsh/nocapture:toolbar ;;
+show) exec noctalia msg panel-open hackrdotsh/nocapture:toolbar ;;
+hide) exec noctalia msg panel-close hackrdotsh/nocapture:toolbar ;;
 stop | status) exec nocapture-engine "$action" ;;
 doctor)
   noctalia --version
   plugins=$(noctalia msg plugins list)
   failed=0
-  if grep -Eq '^0xhckr/nocapture .* enabled$' <<<"$plugins"; then
-    echo '0xhckr/nocapture: enabled'
+  if grep -Eq '^hackrdotsh/nocapture .* enabled$' <<<"$plugins"; then
+    echo 'hackrdotsh/nocapture: enabled'
   else
-    echo '0xhckr/nocapture: not enabled' >&2
+    echo 'hackrdotsh/nocapture: not enabled' >&2
     failed=1
   fi
   if command -v nocapture-engine >/dev/null 2>&1; then
