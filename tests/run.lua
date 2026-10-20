@@ -16,7 +16,7 @@ local function test(name, callback)
 end
 
 local function host()
-  local h = { calls = {}, queue = {}, errors = {}, missing = false }
+  local h = { calls = {}, queue = {}, errors = {}, notifications = {}, missing = false }
   local config = {
     screenshot_directory = "~/Pictures/Nocapture",
     recording_directory = "~/Videos/Nocapture",
@@ -34,6 +34,7 @@ local function host()
     },
     status = { state = "idle" },
     result = { path = "/saved/capture.png" },
+    cancelled = { state = "cancelled", path = "/not-saved/capture.mp4" },
   }
   local env = setmetatable({}, { __index = _G })
   env.require = function()
@@ -67,7 +68,9 @@ local function host()
         return data[value]
       end,
     },
-    notify = function() end,
+    notify = function(title)
+      table.insert(h.notifications, title)
+    end,
     notifyError = function(_, body)
       table.insert(h.errors, body)
     end,
@@ -232,6 +235,15 @@ test("failed launches and backend exits surface errors", function()
   h:complete()
   h:complete({ exitCode = 1, stderr = "No wallpaper" })
   equal(h.errors[1], "No wallpaper")
+end)
+
+test("cancelled captures never show a saved notification", function()
+  local h = host()
+  h:click("Video")
+  h:click("Record")
+  h:complete()
+  h:complete({ exitCode = 0, stdout = "cancelled" })
+  equal(#h.notifications, 0)
 end)
 
 print(string.format("%d plugin tests passed", passed))

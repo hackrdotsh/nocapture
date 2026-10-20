@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -68,8 +69,20 @@ class Commands(unittest.TestCase):
             record_command(options(target="region"), Path("out.mp4"))
 
     def test_cancelled_region_is_not_an_error(self):
-        with patch("subprocess.run", return_value=subprocess.CompletedProcess([], 1, "", "")):
-            with self.assertRaises(Cancelled):
+        for message in ("", "selection cancelled\n", "selection canceled\n"):
+            with self.subTest(message=message):
+                with patch(
+                    "subprocess.run", return_value=subprocess.CompletedProcess([], 1, "", message)
+                ):
+                    with self.assertRaises(Cancelled):
+                        select_region()
+
+    def test_region_picker_failure_is_not_cancelled(self):
+        with patch(
+            "subprocess.run",
+            return_value=subprocess.CompletedProcess([], 1, "", "failed to connect"),
+        ):
+            with self.assertRaises(RuntimeError):
                 select_region()
 
     def test_unique_destinations(self):
@@ -124,6 +137,62 @@ class Images(unittest.TestCase):
             with Image.open(root / "out.gif") as image:
                 self.assertEqual(image.width, 64)
                 self.assertGreater(image.n_frames, 1)
+
+
+class ClipboardLifecycle(unittest.TestCase):
+    def test_screenshot_returns_while_clipboard_provider_is_alive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            scripts = {
+                "grim": (
+                    "from PIL import Image\nimport sys\n"
+                    "Image.new('RGB', (20, 20), 'red').save(sys.argv[-1])\n"
+                ),
+                "wl-copy": (
+                    "import os, sys, time\nfrom pathlib import Path\n"
+                    "sys.stdin.buffer.read()\npid = os.fork()\n"
+                    "if pid == 0:\n    time.sleep(60)\n    os._exit(0)\n"
+                    "Path(os.environ['CLIPBOARD_PID']).write_text(str(pid))\n"
+                ),
+            }
+            for name, source in scripts.items():
+                path = root / name
+                path.write_text(f"#!{sys.executable}\n" + source)
+                path.chmod(0o755)
+            env = dict(
+                os.environ,
+                PATH=str(root) + os.pathsep + os.environ["PATH"],
+                PYTHONPATH=str(Path("backend").resolve()),
+                CLIPBOARD_PID=str(root / "clipboard.pid"),
+            )
+            process = subprocess.Popen(
+                [
+                    sys.executable,
+                    "-m",
+                    "nocapture_backend",
+                    "screenshot",
+                    "display",
+                    "--output",
+                    "TEST",
+                    "--directory",
+                    str(root / "captures"),
+                ],
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            try:
+                stdout, stderr = process.communicate(timeout=2)
+                self.assertEqual(process.returncode, 0, stderr)
+                self.assertTrue(json.loads(stdout)["clipboard"])
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                pid_file = root / "clipboard.pid"
+                if pid_file.exists():
+                    os.kill(int(pid_file.read_text()), signal.SIGTERM)
+                process.communicate()
 
 
 class Worker(unittest.TestCase):
@@ -252,6 +321,20 @@ while True: time.sleep(0.01)
         self.assertEqual(state["state"], "error")
         self.assertTrue(Path(state["source"]).is_file())
         self.assertFalse(Path(state["path"]).exists())
+
+    def test_cancelled_recording_has_no_saved_path(self):
+        script = self.root / "gpu-screen-recorder"
+        script.write_text(
+            f"#!{sys.executable}\nimport sys\n"
+            'print("canceled by the user", file=sys.stderr)\nsys.exit(1)\n'
+        )
+        script.chmod(0o755)
+        result = self.cli("record", "display", "--output", "DP-1", "--directory", str(self.root))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        value = json.loads(result.stdout)
+        self.assertEqual(value["state"], "cancelled")
+        self.assertIsNone(value["path"])
+        self.assertIsNone(value["source"])
 
 
 if __name__ == "__main__":

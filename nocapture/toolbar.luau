@@ -355,7 +355,7 @@ function onCapture()
     end
     execute(command, function(captured)
       local value = noctalia.json.decode(captured.stdout)
-      if value and value.path then
+      if value and value.path and (value.state == nil or value.state == "saved") then
         noctalia.notify("Capture saved", value.path)
       end
     end)

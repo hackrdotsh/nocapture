@@ -68,9 +68,14 @@ def reserve_path(directory: str, extension: str, prefix: str = "capture") -> Pat
 def select_region() -> str:
     result = subprocess.run(["slurp", "-f", "%wx%h+%x+%y"], capture_output=True, text=True)
     if result.returncode:
-        if not result.stdout.strip() and not result.stderr.strip():
+        message = result.stderr.strip()
+        if (
+            result.returncode == 1
+            and not result.stdout.strip()
+            and message.lower() in ("", "selection cancelled", "selection canceled")
+        ):
             raise Cancelled()
-        raise RuntimeError(result.stderr.strip() or "Region selection failed.")
+        raise RuntimeError(message or "Region selection failed.")
     region = result.stdout.strip()
     if not re.fullmatch(r"[1-9]\d*x[1-9]\d*\+-?\d+\+-?\d+", region):
         raise RuntimeError("The region picker returned invalid geometry.")
@@ -128,7 +133,13 @@ def screenshot(args) -> dict:
         else:
             source.replace(destination)
         with destination.open("rb") as image:
-            clipboard = subprocess.run(["wl-copy", "--type", "image/png"], stdin=image)
+            # wl-copy forks a provider; it must not retain the caller's IPC pipes.
+            clipboard = subprocess.run(
+                ["wl-copy", "--type", "image/png"],
+                stdin=image,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
         return {"path": str(destination), "clipboard": clipboard.returncode == 0}
     except BaseException:
         if destination.stat().st_size == 0:

@@ -148,12 +148,12 @@ def _record_owned(args, directory: Path) -> dict:
                         log.flush()
                         detail = (directory / "recording.log").read_text(errors="replace")[-2000:]
                         if "canceled by the user" in detail or "cancelled by the user" in detail:
-                            publish(state="cancelled")
+                            publish(state="cancelled", path=None, source=None)
                             return state
                         raise RuntimeError(detail or "Capture failed. Check the recording log.")
                     if phase == "recording":
                         if not source.exists() or source.stat().st_size == 0:
-                            publish(state="cancelled")
+                            publish(state="cancelled", path=None, source=None)
                             return state
                         streams = read_json(
                             ["ffprobe", "-v", "error", "-show_streams", "-of", "json", str(source)]
@@ -184,7 +184,7 @@ def _record_owned(args, directory: Path) -> dict:
                     publish(state="saved", source=None)
                     return state
     except Cancelled:
-        publish(state="cancelled")
+        publish(state="cancelled", path=None, source=None)
         return state
     except BaseException as error:
         publish(state="error", error=str(error), source=str(source) if source else None)
