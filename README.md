@@ -150,8 +150,8 @@ compositor, permission, GPU, or portal compatibility.
 
 Current limitations: no annotation editor, countdown, combined multi-monitor
 desktop video, or automatic window-to-audio mapping. Full display means one
-selected display, not all connected monitors. The visual toolbar and real
-capture/audio paths still require live verification.
+selected display, not all connected monitors. See [live verification results](docs/verification.md)
+for tested paths and the remaining KMS/multi-monitor/ARM64 coverage gaps.
 
 ## Upstream contracts
 

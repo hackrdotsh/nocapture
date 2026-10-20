@@ -10,3 +10,4 @@ Native Noctalia v5 capture toolbar, initially targeting Niri on Linux.
 - StyLua is approved for this repository. Use `nix run .#fmt` before `nix run .#check`.
 - Native UI, compositor capture, clipboard, and video output need a real Wayland session; mocked tests do not prove them.
 - Do not enable plugins or change the user's Niri/Noctalia settings without asking.
+- For live testing, follow `.agents/skills/verify-nocapture/SKILL.md`. Never accept a portal recording without checking the captured source; row order changes between requests.

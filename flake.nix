@@ -91,6 +91,8 @@
             shellcheck bin/nocapture tests/cli.sh
             ruff check backend tests
             ruff format --check backend tests
+            ruff check tools
+            ruff format --check tools
             lua tests/run.lua
             bash tests/cli.sh
             PYTHONPATH=backend python -m unittest discover -s tests -p 'test_*.py'
@@ -133,8 +135,33 @@
             shfmt -i 2 -w bin/nocapture tests/cli.sh
             ruff check --select I --fix backend tests
             ruff format backend tests
+            ruff check --select I --fix tools
+            ruff format tools
             nixfmt flake.nix
           '';
+          live = {
+            type = "app";
+            meta.description = "Run isolated live desktop verification";
+            program = nixpkgs.lib.getExe (
+              p.pkgs.writeShellApplication {
+                name = "nocapture-live";
+                runtimeInputs = p.tools ++ [
+                  p.package
+                  p.pkgs.niri
+                  p.pkgs.grim
+                  p.pkgs.wl-clipboard
+                  p.pkgs.wlrctl
+                  p.pkgs.wtype
+                  p.pkgs.mpv
+                  p.pkgs.dbus
+                ];
+                text = ''
+                  export NOCAPTURE_TEST_PACKAGE=${p.package}
+                  exec python tools/live_verify.py "$@"
+                '';
+              }
+            );
+          };
         }
       );
       devShells = forAllSystems (
