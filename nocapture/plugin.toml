@@ -1,0 +1,23 @@
+id = "0xhckr/nocapture"
+name = "Nocapture"
+version = "0.1.0"
+plugin_api = 24
+author = "0xhckr"
+license = "MIT"
+icon = "screenshot"
+description = "A screenshot and recording toolbar for Niri and Noctalia."
+dependencies = ["niri", "gpu-screen-recorder", "slurp"]
+
+[[panel]]
+id = "toolbar"
+entry = "toolbar.luau"
+width = 640
+height = 180
+placement = "floating"
+position = "bottom_center"
+keyboard_focus = "exclusive"
+dismiss_on_outside_click = true
+
+[[widget]]
+id = "bar"
+entry = "widget.luau"

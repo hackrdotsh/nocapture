@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  echo 'Usage: nocapture [show|hide|stop|doctor|--help]'
+  echo 'Without arguments, toggle the Noctalia capture toolbar.'
+}
+
+if (($# > 1)); then
+  usage >&2
+  exit 2
+fi
+
+action=${1:-toggle}
+case "$action" in
+--help | -h)
+  usage
+  exit 0
+  ;;
+toggle | show | hide | stop | doctor) ;;
+*)
+  usage >&2
+  exit 2
+  ;;
+esac
+
+if ! command -v noctalia >/dev/null 2>&1; then
+  echo 'nocapture: Noctalia v5 must be installed and running.' >&2
+  exit 1
+fi
+
+case "$action" in
+toggle) exec noctalia msg panel-toggle 0xhckr/nocapture:toolbar ;;
+show) exec noctalia msg panel-open 0xhckr/nocapture:toolbar ;;
+hide) exec noctalia msg panel-close 0xhckr/nocapture:toolbar ;;
+stop) exec noctalia msg plugin noctalia/screen_recorder:service all stop ;;
+doctor)
+  noctalia --version
+  plugins=$(noctalia msg plugins list)
+  failed=0
+  for plugin in 0xhckr/nocapture noctalia/screen_recorder; do
+    if grep -Eq "^${plugin} .* enabled$" <<<"$plugins"; then
+      echo "$plugin: enabled"
+    else
+      echo "$plugin: not enabled" >&2
+      failed=1
+    fi
+  done
+  for tool in niri gpu-screen-recorder slurp; do
+    if command -v "$tool" >/dev/null 2>&1; then
+      echo "$tool: available"
+    else
+      echo "$tool: missing" >&2
+      failed=1
+    fi
+  done
+  exit "$failed"
+  ;;
+esac
