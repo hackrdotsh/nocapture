@@ -185,53 +185,57 @@ render = function()
   elseif kind == "gif" then
     hint = "GIFs have no audio."
   end
-  panel.render(ui.column({ gap = 12, padding = 12 }, {
-    ui.row({ gap = 8, align = "center" }, {
-      ui.button({
-        text = "Screenshot",
-        glyph = "screenshot",
-        selected = kind == "screenshot",
-        enabled = not busy,
-        onClick = function()
-          setKind("screenshot")
-        end,
-      }),
-      ui.button({
-        text = "Video",
-        glyph = "video",
-        selected = kind == "record",
-        enabled = not busy,
-        onClick = function()
-          setKind("record")
-        end,
-      }),
-      ui.button({
-        text = "GIF",
-        glyph = "photo-video",
-        selected = kind == "gif",
-        enabled = not busy,
-        onClick = function()
-          setKind("gif")
-        end,
-      }),
+  local formats = ui.row({ gap = 8, align = "center" }, {
+    ui.button({
+      text = "Screenshot",
+      glyph = "screenshot",
+      selected = kind == "screenshot",
+      enabled = not busy,
+      onClick = function()
+        setKind("screenshot")
+      end,
     }),
-    ui.row({ gap = 8, align = "center" }, modes),
-    ui.row({ gap = 8, align = "center", visible = #options > 0 }, options),
-    ui.row({ gap = 8, align = "center", visible = #effects > 0 }, effects),
-    ui.label({ text = hint, color = "on_surface_variant", visible = hint ~= "" }),
-    ui.row({ gap = 8, align = "center" }, {
-      ui.label({ text = active and status or "", flexGrow = 1 }),
-      ui.button({
-        text = "Stop recording",
-        variant = "outline",
-        enabled = active and status ~= "converting",
-        onClick = "onStop",
-      }),
+    ui.button({
+      text = "Video",
+      glyph = "video",
+      selected = kind == "record",
+      enabled = not busy,
+      onClick = function()
+        setKind("record")
+      end,
+    }),
+    ui.button({
+      text = "GIF",
+      glyph = "photo-video",
+      selected = kind == "gif",
+      enabled = not busy,
+      onClick = function()
+        setKind("gif")
+      end,
+    }),
+  })
+  panel.render(ui.column({ gap = 12, padding = 12 }, {
+    ui.row({ gap = 16, align = "center" }, {
+      formats,
+      ui.row({ gap = 8, align = "center" }, modes),
+      ui.spacer({ flexGrow = 1 }),
       ui.button({
         text = kind == "screenshot" and "Capture" or "Record",
         variant = "primary",
         enabled = not busy and (kind == "screenshot" or not active),
         onClick = "onCapture",
+      }),
+    }),
+    ui.row({ gap = 8, align = "center", visible = #options > 0 }, options),
+    ui.row({ gap = 8, align = "center", visible = #effects > 0 }, effects),
+    ui.label({ text = hint, color = "on_surface_variant", visible = hint ~= "" }),
+    ui.row({ gap = 8, align = "center", visible = active }, {
+      ui.label({ text = status, flexGrow = 1 }),
+      ui.button({
+        text = "Stop recording",
+        variant = "outline",
+        enabled = active and status ~= "converting",
+        onClick = "onStop",
       }),
     }),
   }))
