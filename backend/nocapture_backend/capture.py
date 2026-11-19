@@ -315,7 +315,9 @@ def screenshot(args) -> dict:
         source.unlink(missing_ok=True)
 
 
-def record_command(args, output: Path, region: str | None = None) -> list[str]:
+def record_command(
+    args, output: Path, region: str | None = None, *, codec: str = "h264"
+) -> list[str]:
     if args.format == "gif" and args.audio != "none":
         raise ValueError("GIF cannot contain audio. Select silent recording.")
     if args.target == "window" and args.audio not in ("none", "application"):
@@ -346,7 +348,7 @@ def record_command(args, output: Path, region: str | None = None) -> list[str]:
         "-f",
         str(args.fps),
         "-k",
-        "h264",
+        codec,
         "-encoder",
         "gpu",
         "-fallback-cpu-encoding",

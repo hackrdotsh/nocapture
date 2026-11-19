@@ -86,6 +86,8 @@ The bundled GPU Screen Recorder has a small, source-pinned Nix patch:
 and display capture remain unchanged. This prevents the window picker from
 offering a monitor capture as a substitute. Nocapture uses GPU encoding with
 the backend's CPU fallback if GPU encoding is unavailable.
+Display and region recordings retry with HEVC if the selected size exceeds
+the H.264 encoder's limit.
 
 Nocapture owns its recorder process and a private control socket. It does **not**
 use or require `noctalia/screen_recorder`, change its settings, or stop its

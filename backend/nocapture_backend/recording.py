@@ -1,6 +1,7 @@
 import fcntl
 import json
 import os
+import re
 import select
 import signal
 import socket
@@ -69,6 +70,35 @@ def record(args) -> dict:
         return _record_owned(args, directory)
 
 
+def log_tail(path: Path, start: int) -> str:
+    with path.open("rb") as log:
+        end = log.seek(0, os.SEEK_END)
+        log.seek(max(start, end - 16384))
+        return log.read().decode(errors="replace")
+
+
+def recorder_error(detail: str) -> str:
+    errors = [
+        line.removeprefix("gsr error: ")
+        for line in detail.splitlines()
+        if line.startswith("gsr error: ")
+    ]
+    if errors:
+        message = errors[-1].strip()
+        limit = re.search(
+            r"max resolution for video codec (\w+) is (\d+x\d+).* at resolution (\d+x\d+)", message
+        )
+        if limit:
+            codec, maximum, requested = limit.groups()
+            return (
+                f"{codec.upper()} cannot record {requested}; the limit is {maximum}. "
+                "Try a smaller region."
+            )
+        if len(message) <= 220:
+            return message
+    return "Recording failed. See the Nocapture recording log for details."
+
+
 def _record_owned(args, directory: Path) -> dict:
     source = None
     destination = None
@@ -102,12 +132,15 @@ def _record_owned(args, directory: Path) -> dict:
         region = select_region() if args.target == "region" else None
         destination = reserve_path(args.directory, args.format, "recording")
         source = destination.with_name(f".{destination.stem}.recording.mp4")
-        command = record_command(args, source, region)
+        codec = "h264"
+        command = record_command(args, source, region, codec=codec)
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
             server.bind(str(control))
             control.chmod(0o600)
             server.listen(4)
-            with (directory / "recording.log").open("w") as log:
+            log_path = directory / "recording.log"
+            with log_path.open("wb") as log:
+                log_start = 0
                 child = subprocess.Popen(command, stdout=log, stderr=log)
                 publish(state="starting", path=str(destination), source=str(source))
                 phase = "recording"
@@ -145,12 +178,30 @@ def _record_owned(args, directory: Path) -> dict:
                             publish(state="recording")
                         continue
                     if code != 0:
-                        log.flush()
-                        detail = (directory / "recording.log").read_text(errors="replace")[-2000:]
+                        detail = log_tail(log_path, log_start)
                         if "canceled by the user" in detail or "cancelled by the user" in detail:
                             publish(state="cancelled", path=None, source=None)
                             return state
-                        raise RuntimeError(detail or "Capture failed. Check the recording log.")
+                        if phase == "converting":
+                            raise RuntimeError("GIF conversion failed. The source video was kept.")
+                        if (
+                            codec == "h264"
+                            and args.target != "window"
+                            and not stopped
+                            and state["state"] == "starting"
+                            and (not source.exists() or source.stat().st_size == 0)
+                            and "max resolution for video codec h264" in detail
+                        ):
+                            codec = "hevc"
+                            log.write(
+                                b"Nocapture: retrying with HEVC after the H.264 size limit.\n"
+                            )
+                            log.flush()
+                            log_start = log.tell()
+                            command = record_command(args, source, region, codec=codec)
+                            child = subprocess.Popen(command, stdout=log, stderr=log)
+                            continue
+                        raise RuntimeError(recorder_error(detail))
                     if phase == "recording":
                         if not source.exists() or source.stat().st_size == 0:
                             publish(state="cancelled", path=None, source=None)

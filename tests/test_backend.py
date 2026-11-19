@@ -203,6 +203,15 @@ class Worker(unittest.TestCase):
             os.environ, XDG_RUNTIME_DIR=str(self.root), PYTHONPATH=str(Path("backend").resolve())
         )
         self.env["PATH"] = str(self.root) + os.pathsep + self.env["PATH"]
+        self.notification = self.root / "notification.json"
+        noctalia = self.root / "noctalia"
+        noctalia.write_text(f"""#!{sys.executable}
+import sys
+from pathlib import Path
+assert sys.argv[1:3] == ["msg", "notification-show"]
+Path({str(self.notification)!r}).write_text(sys.argv[3])
+""")
+        noctalia.chmod(0o755)
         self.processes = []
         self.video = self.root / "fixture.mp4"
         subprocess.run(
@@ -326,11 +335,59 @@ while True: time.sleep(0.01)
         picker = self.root / "slurp"
         picker.write_text("#!/bin/sh\necho 'selection cancelled' >&2\nexit 1\n")
         picker.chmod(0o755)
-        result = self.cli("record", "display", "--pick-output", "--directory", str(self.root))
+        result = self.cli(
+            "record", "display", "--pick-output", "--directory", str(self.root), "--notify"
+        )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)["state"], "cancelled")
         self.assertFalse(list(self.root.glob("nocapture-*/recording.log")))
         self.assertFalse(list(self.root.glob("recording-*")))
+        self.assertFalse(self.notification.exists())
+
+    def test_h264_resolution_failure_retries_with_hevc(self):
+        script = self.root / "gpu-screen-recorder"
+        original = script.read_text()
+        header, worker = original.split("\n", 1)
+        script.write_text(
+            header
+            + "\n"
+            + """import sys
+assert sys.argv[sys.argv.index("-w") + 1] == "DP-1"
+codec = sys.argv[sys.argv.index("-k") + 1]
+print(f"encoder: {codec}", flush=True)
+if codec == "h264":
+    print("gsr error: The max resolution for video codec h264 is 4096x4096 "
+          "while you are trying to capture at resolution 5120x2160.", file=sys.stderr)
+    sys.exit(1)
+assert codec == "hevc"
+"""
+            + worker
+        )
+        process = self.start("mp4", "--output", "DP-1", "--notify")
+        self.assertEqual(self.cli("stop").returncode, 0)
+        stdout, stderr = process.communicate(timeout=10)
+        self.assertEqual(process.returncode, 0, stderr)
+        self.assertEqual(json.loads(stdout)["state"], "saved")
+        self.assertEqual(json.loads(self.notification.read_text())["summary"], "Capture saved")
+        log = next(self.root.glob("nocapture-*/recording.log")).read_text()
+        self.assertLess(log.index("encoder: h264"), log.index("encoder: hevc"))
+
+    def test_recorder_error_omits_info_lines_but_preserves_log(self):
+        script = self.root / "gpu-screen-recorder"
+        script.write_text(
+            "#!/bin/sh\necho 'gsr info: helper connected' >&2\n"
+            "echo 'gsr error: Device unavailable' >&2\nexit 1\n"
+        )
+        result = self.cli(
+            "record", "display", "--output", "DP-1", "--directory", str(self.root), "--notify"
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stderr.strip(), "Device unavailable")
+        self.assertEqual(json.loads(self.notification.read_text())["body"], "Device unavailable")
+        self.assertIn(
+            "gsr info: helper connected",
+            next(self.root.glob("nocapture-*/recording.log")).read_text(),
+        )
 
     def test_conversion_failure_keeps_source_video(self):
         script = self.root / "ffmpeg"

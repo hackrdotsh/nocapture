@@ -79,7 +79,9 @@ local function host()
       if h.reject then
         return false
       end
-      table.insert(h.queue, { callback = callback, argv = argv })
+      if callback then
+        table.insert(h.queue, { callback = callback, argv = argv })
+      end
       return true
     end,
   }
@@ -258,10 +260,18 @@ test("failed launches and backend exits surface errors", function()
   equal(h.errors[1], "No wallpaper")
 end)
 
-test("cancelled captures never show a saved notification", function()
+test("recording runs without a timeout callback and owns its notifications", function()
   local h = host()
   h:click("Video")
   h:click("Record")
+  h:complete()
+  assert(h.calls[3]:find("--notify", 1, true))
+  equal(#h.queue, 0)
+end)
+
+test("cancelled screenshots never show a saved notification", function()
+  local h = host()
+  h:click("Capture")
   h:complete()
   h:complete({ exitCode = 0, stdout = "cancelled" })
   equal(#h.notifications, 0)

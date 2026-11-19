@@ -48,6 +48,7 @@ def parser() -> argparse.ArgumentParser:
             capture.add_argument("--shadow", action="store_true")
             capture.add_argument("--padding", type=bounded(0, 512), default=96)
         else:
+            capture.add_argument("--notify", action="store_true", help="Notify Noctalia when done")
             capture.add_argument(
                 "--audio",
                 default="none",
@@ -65,6 +66,18 @@ def parser() -> argparse.ArgumentParser:
             capture.add_argument("--gif-fps", type=bounded(1, 30), default=15)
             capture.add_argument("--gif-width", type=bounded(16, 3840), default=1280)
     return result
+
+
+def notify_recording(summary: str, body: str, urgency: str = "normal") -> None:
+    payload = json.dumps(
+        {"app_name": "Nocapture", "summary": summary, "body": body, "urgency": urgency}
+    )
+    try:
+        subprocess.run(
+            ["noctalia", "msg", "notification-show", payload], capture_output=True, timeout=2
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
 
 
 def main() -> int:
@@ -85,12 +98,16 @@ def main() -> int:
             value = screenshot(args)
         else:
             value = record(args)
+            if args.notify and value["state"] == "saved":
+                notify_recording("Capture saved", value["path"])
         print(json.dumps(value))
         return 0
     except (Cancelled, KeyboardInterrupt):
         print(json.dumps({"state": "cancelled"}))
         return 0
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
+        if getattr(args, "notify", False):
+            notify_recording("Recording failed", str(error), "critical")
         print(str(error), file=sys.stderr)
         return 1
 

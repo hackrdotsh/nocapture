@@ -295,6 +295,7 @@ function onCapture()
   busy = true
   closingForCapture = true
   local token = generation
+  local isRecording = kind ~= "screenshot"
   local timeout = kind == "screenshot" and target == "window" and 60000 or nil
   panel.close()
   local accepted = noctalia.runAsync({ "sleep", "0.25" }, function(result)
@@ -304,6 +305,14 @@ function onCapture()
     busy = false
     if result.exitCode ~= 0 then
       errorMessage("Capture delay failed. Try again.")
+      return
+    end
+    if isRecording then
+      -- Noctalia times out commands that have an output callback.
+      table.insert(command, "--notify")
+      if not noctalia.runAsync(command) then
+        errorMessage("Could not start recording.")
+      end
       return
     end
     execute(command, function(captured)
