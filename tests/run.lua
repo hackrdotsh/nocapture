@@ -155,11 +155,18 @@ test("window picking preserves wallpaper and shadow settings", function()
   local value = command(actions.command({
     kind = "screenshot",
     target = "window",
+    asShown = true,
     wallpaper = true,
     shadow = true,
     padding = 80,
   }))
   assert(value:find("--pick-window --wallpaper --shadow --padding 80", 1, true))
+  assert(not value:find("--as-shown", 1, true))
+end)
+
+test("as-shown window screenshots request the composited pixels", function()
+  local value = command(actions.command({ kind = "screenshot", target = "window", asShown = true }))
+  assert(value:find("--pick-window --as-shown", 1, true))
 end)
 
 test("opening only reads context and status", function()

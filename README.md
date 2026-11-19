@@ -16,6 +16,12 @@ Window screenshots can include the **current Noctalia wallpaper** as a padded
 background and an optional **macOS-inspired soft shadow**. Shadow-only exports
 retain transparent space around the window. Padding is configurable.
 
+On Umbriel, **As shown on screen** keeps the visible backdrop through translucent
+windows, including blur. It captures the screen within the window's bounds, so
+overlapping content can appear and the backdrop is baked into the PNG. Turn it
+off for a window-only capture. Wallpaper and shadow styling use the isolated
+window instead.
+
 Select **Screenshot**, **Video**, or **GIF**, then a target. For window screenshots,
 press **Capture**, then click the window. On Umbriel, click an uncovered area if
 overlapping windows make the target ambiguous. For window recordings, choose the window in the
@@ -128,6 +134,7 @@ nocapture doctor          # Check shell/plugin/engine presence, not capture perm
 
 nocapture-engine screenshot window --wallpaper --shadow
 nocapture-engine screenshot window --pick-window
+nocapture-engine screenshot window --pick-window --as-shown
 nocapture-engine screenshot display --pick-output
 nocapture-engine record region --audio system
 nocapture-engine record display --output eDP-1 --format gif

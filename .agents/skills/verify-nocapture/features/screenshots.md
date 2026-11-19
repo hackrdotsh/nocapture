@@ -19,6 +19,10 @@ or Window. For window captures, press Capture and click the test-pattern window.
   pixels, add configured padding, use the fixture wallpaper, and render a soft
   shadow with transparent margins when there is no wallpaper.
   Repeat and press Esc in the picker; no PNG should be saved.
+- On Umbriel, compare **As shown on screen** on and off with a translucent
+  window over a patterned backdrop. The first capture must show the visible
+  blur; the second must exclude the desktop. Wallpaper and shadow styling
+  must continue to use the isolated capture.
 - Compare `wl-paste --type image/png` with the saved file, byte for byte. Under
   `exec`, redirect the clipboard to a file inside a shell command because the
   harness decodes stdout as text.

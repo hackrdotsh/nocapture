@@ -46,6 +46,9 @@ class Umbriel(unittest.TestCase):
                 stdout = json.dumps(WINDOW)
             case ["umbriel", "outputs", "--json"]:
                 stdout = json.dumps(OUTPUTS)
+            case ["grim", "-g", "-200,30 160x90", path]:
+                Image.new("RGB", (160, 90), "gold").save(path)
+                stdout = ""
             case ["gpu-screen-recorder", "--list-application-audio"]:
                 stdout = "Music\n"
             case ["slurp", "-o", "-r", *flags] if flags[-2:] == ["-f", "%l"]:
@@ -126,6 +129,26 @@ class Umbriel(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             args = parser().parse_args(["screenshot", "display", "--directory", directory])
             self.assertTrue(Path(screenshot(args)["path"]).is_file())
+
+    def test_as_shown_captures_visible_window_bounds_from_the_screen(self):
+        output = dict(
+            OUTPUTS[0],
+            enabled=True,
+            position={"x": -300, "y": 30},
+            logical_size={"width": 300, "height": 180},
+        )
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch(
+                "nocapture_backend.capture.compositor_json", side_effect=[self.windows, [output]]
+            ),
+        ):
+            args = parser().parse_args(
+                ["screenshot", "window", "--pick-window", "--as-shown", "--directory", directory]
+            )
+            with Image.open(screenshot(args)["path"]) as image:
+                self.assertEqual(image.size, (160, 90))
+                self.assertEqual(image.getpixel((0, 0)), (255, 215, 0))
 
     def test_display_capture_uses_the_clicked_screen_not_the_focused_output(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -41,6 +41,9 @@ def parser() -> argparse.ArgumentParser:
             window.add_argument(
                 "--pick-window", action="store_true", help="Click a window to capture"
             )
+            capture.add_argument(
+                "--as-shown", action="store_true", help="Capture visible Umbriel window pixels"
+            )
             capture.add_argument("--wallpaper", action="store_true")
             capture.add_argument("--shadow", action="store_true")
             capture.add_argument("--padding", type=bounded(0, 512), default=96)
@@ -71,6 +74,10 @@ def main() -> int:
         cli.error("--pick-output requires the display target")
     if getattr(args, "pick_window", False) and args.target != "window":
         cli.error("--pick-window requires the window target")
+    if getattr(args, "as_shown", False) and (
+        args.target != "window" or args.wallpaper or args.shadow
+    ):
+        cli.error("--as-shown requires a window screenshot without wallpaper or shadow styling")
     try:
         if args.command == "context":
             value = context()

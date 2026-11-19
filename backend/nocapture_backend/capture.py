@@ -79,6 +79,7 @@ def context() -> dict:
         audio_error = str(error)
     return {
         "windows": windows,
+        "window_as_shown": umbriel,
         "outputs": outputs,
         "focused_output": focused,
         "applications": applications,
@@ -181,6 +182,28 @@ def select_window(umbriel: bool) -> dict:
     return window
 
 
+def capture_window_as_shown(window: dict, source: Path) -> None:
+    output = next(
+        (
+            output
+            for output in compositor_json("outputs", True)
+            if output["enabled"] and output["name"] == window["output"]
+        ),
+        None,
+    )
+    if not window["visible"] or not output:
+        raise RuntimeError("Show the window on screen before capturing it as shown.")
+    position = output["position"]
+    size = output["logical_size"]
+    x = max(window["x"], position["x"])
+    y = max(window["y"], position["y"])
+    right = min(window["x"] + window["w"], position["x"] + size["width"])
+    bottom = min(window["y"] + window["h"], position["y"] + size["height"])
+    if right <= x or bottom <= y:
+        raise RuntimeError("Show the window on screen before capturing it as shown.")
+    run(["grim", "-g", f"{x},{y} {right - x}x{bottom - y}", str(source)], timeout=10)
+
+
 def capture_window(window_id: str | None, source: Path, umbriel: bool) -> None:
     if window_id is None:
         window = compositor_json("focused-window", umbriel)
@@ -230,10 +253,29 @@ def screenshot(args) -> dict:
             run(["grim", "-o", display_output(args), str(source)])
         else:
             umbriel = is_umbriel()
+            if args.as_shown and not umbriel:
+                raise RuntimeError("Capturing a window as shown is only available on Umbriel.")
             if args.pick_window:
                 picked_window = select_window(umbriel)
-            window_id = str(picked_window["id"]) if picked_window else args.window_id
-            capture_window(window_id, source, umbriel)
+            if args.as_shown:
+                window = picked_window
+                if not window and args.window_id:
+                    window = next(
+                        (
+                            entry
+                            for entry in compositor_json("windows", True)
+                            if entry["id"] == args.window_id
+                        ),
+                        None,
+                    )
+                elif not window:
+                    window = compositor_json("focused-window", True)
+                if not window:
+                    raise RuntimeError("No window to capture.")
+                capture_window_as_shown(window, source)
+            else:
+                window_id = str(picked_window["id"]) if picked_window else args.window_id
+                capture_window(window_id, source, umbriel)
         wallpaper = None
         if args.wallpaper:
             output = args.output

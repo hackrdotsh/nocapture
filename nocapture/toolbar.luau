@@ -4,6 +4,7 @@ local target = "region"
 local audio = "none"
 local wallpaper = false
 local shadow = false
+local asShown = true
 local context = { applications = {} }
 local applicationIndex = 1
 local busy = false
@@ -135,6 +136,20 @@ render = function()
         end,
       }),
     }
+    if context.window_as_shown and not wallpaper and not shadow then
+      table.insert(effects, ui.label({ text = "As shown on screen" }))
+      table.insert(
+        effects,
+        ui.toggle({
+          checked = asShown,
+          enabled = not busy,
+          onChange = function(value)
+            asShown = value == "true"
+            render()
+          end,
+        })
+      )
+    end
   end
   local status = recording.state or "idle"
   local active = status == "starting"
@@ -275,6 +290,7 @@ function onCapture()
     application = context.applications[applicationIndex],
     wallpaper = wallpaper,
     shadow = shadow,
+    asShown = context.window_as_shown and asShown,
     directory = noctalia.getConfig(
       kind == "screenshot" and "screenshot_directory" or "recording_directory"
     ),
