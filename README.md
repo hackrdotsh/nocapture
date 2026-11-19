@@ -1,6 +1,6 @@
 # Nocapture
 
-A native Noctalia v5 capture toolbar for Niri/Wayland, inspired by macOS's **⌘⇧5**.
+A native Noctalia v5 capture toolbar for Niri and Umbriel, inspired by macOS's **⌘⇧5**.
 
 Repository: [hackrdotsh/nocapture](https://github.com/hackrdotsh/nocapture).
 
@@ -57,9 +57,11 @@ them automatically. The packaged plugin is also available at
 `result/share/noctalia/plugins/nocapture`. Register the parent directory as a path
 source if you want the built version rather than a live checkout.
 
-Noctalia v5 with plugin API 24 or newer is required; v4 is not supported. Region
-and display recording use GPU Screen Recorder's KMS capture and need its host
-permissions. On NixOS, the usual setup is:
+Noctalia v5 with plugin API 24 or newer is required; v4 is not supported.
+On Umbriel, the `umbriel` command must be on Noctalia's PATH. Window screenshots
+use `grim -T` to capture the selected window by ID, not a crop of the desktop.
+Region and display recording use GPU Screen Recorder's KMS capture and need its
+host permissions. On NixOS, the usual setup is:
 
 ```nix
 programs.gpu-screen-recorder.enable = true;
@@ -81,7 +83,14 @@ use or require `noctalia/screen_recorder`, change its settings, or stop its
 recordings. Do not run two capture engines concurrently if your GPU cannot
 support that workload.
 
-Optional Niri binding once installed:
+Optional Umbriel binding once installed:
+
+```toml
+[keybinds]
+"Mod+Shift+5" = "spawn nocapture"
+```
+
+Optional Niri binding:
 
 ```kdl
 binds {
@@ -143,7 +152,7 @@ image pixels, real FFmpeg GIF conversion, and subprocess start/stop/single-owner
 behavior using a synthetic recorder. No real desktop or microphone is captured
 by tests. x86-64 and ARM64 Linux are declared; only available builders are tested.
 
-Before calling live capture verified, manually check all three targets on Niri:
+Before calling live capture verified, manually check all three targets on both compositors:
 cancel selectors, inspect PNG/clipboard output, compare the window background
 to its display's wallpaper, play MP4/GIF output, move/occlude a recorded window,
 and play two applications simultaneously to verify audio isolation. Repeat with

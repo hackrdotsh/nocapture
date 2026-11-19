@@ -6,7 +6,7 @@ description: Verify Nocapture's Noctalia UI, screenshot output, recording lifecy
 # Verify Nocapture
 
 Run from the repository root on Linux with Nix and a running Wayland desktop.
-Noctalia v5 must already be installed. The harness uses a separate Niri instance,
+Noctalia v5 must already be installed. The harness uses a separate compositor,
 private D-Bus, temporary XDG directories, and synthetic video. It does not enable
 plugins in the user's shell or change system capture permissions.
 
@@ -27,9 +27,12 @@ nix run .#live -- --instance /tmp/opencode/nocapture-check launch
 nix run .#live -- --instance /tmp/opencode/nocapture-check doctor
 ```
 
+The default is Niri. To test Umbriel, put `umbriel` on PATH and pass
+`launch --compositor umbriel` instead. Use a fresh instance directory for each run.
+
 `identity.json` records the package store path, revision, and creation time.
 `processes.json` records owned PIDs and start times. `env.json` contains an
-allowlisted environment without credentials. The nested Niri opens as a window
+allowlisted environment without credentials. The nested compositor opens as a window
 on the main desktop; keep it visible while testing rendering.
 
 ## Drive and observe

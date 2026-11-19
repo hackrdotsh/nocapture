@@ -32,7 +32,7 @@ def parser() -> argparse.ArgumentParser:
             default=("~/Pictures/Nocapture" if name == "screenshot" else "~/Videos/Nocapture"),
         )
         if name == "screenshot":
-            capture.add_argument("--window-id", type=int)
+            capture.add_argument("--window-id")
             capture.add_argument("--wallpaper", action="store_true")
             capture.add_argument("--shadow", action="store_true")
             capture.add_argument("--padding", type=bounded(0, 512), default=96)

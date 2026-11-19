@@ -25,11 +25,35 @@ def read_json(arguments: list[str]):
     return json.loads(run(arguments, timeout=10).stdout)
 
 
+def is_umbriel() -> bool:
+    desktops = os.getenv("XDG_CURRENT_DESKTOP", "").lower().split(":")
+    for desktop in desktops:
+        if desktop in ("umbriel", "niri"):
+            return desktop == "umbriel"
+    return bool(os.getenv("UMBRIEL_SOCKET") and not os.getenv("NIRI_SOCKET"))
+
+
+def compositor_json(command: str, umbriel: bool):
+    if umbriel:
+        return read_json(["umbriel", command, "--json"])
+    return read_json(["niri", "msg", "--json", command])
+
+
+def umbriel_displays() -> tuple[list[str], str | None]:
+    outputs = [output for output in compositor_json("outputs", True) if output["enabled"]]
+    focused = next((output["name"] for output in outputs if output["focused"]), None)
+    return [output["name"] for output in outputs], focused
+
+
 def focused_output() -> str:
-    output = read_json(["niri", "msg", "--json", "focused-output"])
-    if not output:
+    if is_umbriel():
+        _, name = umbriel_displays()
+    else:
+        output = compositor_json("focused-output", False)
+        name = output["name"] if output else None
+    if not name:
         raise RuntimeError("No focused display. Select a display and try again.")
-    return output["name"]
+    return name
 
 
 def application_names() -> list[str]:
@@ -39,8 +63,14 @@ def application_names() -> list[str]:
 
 
 def context() -> dict:
-    windows = read_json(["niri", "msg", "--json", "windows"])
-    outputs = read_json(["niri", "msg", "--json", "outputs"])
+    umbriel = is_umbriel()
+    windows = compositor_json("windows", umbriel)
+    if umbriel:
+        windows = [dict(window, is_focused=window["focused"]) for window in windows]
+        outputs, focused = umbriel_displays()
+    else:
+        outputs = list(compositor_json("outputs", False))
+        focused = focused_output()
     try:
         applications = application_names()
         audio_error = ""
@@ -49,8 +79,8 @@ def context() -> dict:
         audio_error = str(error)
     return {
         "windows": windows,
-        "outputs": list(outputs),
-        "focused_output": focused_output(),
+        "outputs": outputs,
+        "focused_output": focused,
         "applications": applications,
         "audio_error": audio_error,
     }
@@ -82,6 +112,40 @@ def select_region() -> str:
     return region
 
 
+def capture_window(window_id: str | None, source: Path) -> None:
+    umbriel = is_umbriel()
+    if window_id is None:
+        window = compositor_json("focused-window", umbriel)
+        if not window:
+            raise RuntimeError("No focused window to capture.")
+        window_id = str(window["id"])
+    if umbriel:
+        run(["grim", "-T", window_id, str(source)], timeout=10)
+        return
+    if not re.fullmatch(r"[0-9]+", window_id):
+        raise ValueError("Niri window IDs must be numeric.")
+    run(
+        [
+            "niri",
+            "msg",
+            "action",
+            "screenshot-window",
+            "--id",
+            window_id,
+            "--path",
+            str(source),
+            "--show-pointer",
+            "false",
+        ],
+        timeout=10,
+    )
+    deadline = time.monotonic() + 5
+    while source.stat().st_size == 0 and time.monotonic() < deadline:
+        time.sleep(0.05)
+    if source.stat().st_size == 0:
+        raise RuntimeError("Window capture produced no image. The window may have closed.")
+
+
 def screenshot(args) -> dict:
     destination = reserve_path(args.directory, "png")
     descriptor, name = tempfile.mkstemp(suffix=".png", dir=destination.parent)
@@ -96,31 +160,7 @@ def screenshot(args) -> dict:
         elif args.target == "display":
             run(["grim", "-o", args.output or focused_output(), str(source)])
         else:
-            window_id = args.window_id
-            if window_id is None:
-                window = read_json(["niri", "msg", "--json", "focused-window"])
-                if not window:
-                    raise RuntimeError("No focused window to capture.")
-                window_id = window["id"]
-            run(
-                [
-                    "niri",
-                    "msg",
-                    "action",
-                    "screenshot-window",
-                    "--id",
-                    str(window_id),
-                    "--path",
-                    str(source),
-                    "--show-pointer",
-                    "false",
-                ]
-            )
-            deadline = time.monotonic() + 5
-            while source.stat().st_size == 0 and time.monotonic() < deadline:
-                time.sleep(0.05)
-            if source.stat().st_size == 0:
-                raise RuntimeError("Window capture produced no image. The window may have closed.")
+            capture_window(args.window_id, source)
         wallpaper = None
         if args.wallpaper:
             output = args.output or focused_output()

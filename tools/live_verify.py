@@ -76,7 +76,38 @@ def wait_for(callback, description, timeout=15):
     raise RuntimeError(f"Timed out waiting for {description}")
 
 
-def launch(root, package):
+def launch_compositor(root, env, compositor):
+    env["XDG_CURRENT_DESKTOP"] = compositor
+    if compositor == "umbriel":
+        config = root / "umbriel.toml"
+        config.write_text("[general]\nshow_cheatsheet = false\n")
+        command = ["umbriel", "-c", str(config)]
+        socket_pattern = "umbriel-*.sock"
+        socket_variable = "UMBRIEL_SOCKET"
+    else:
+        config = root / "niri.kdl"
+        config.write_text(
+            "debug { dbus-interfaces-in-non-session-instances; }\n"
+            "layout { gaps 16; }\n"
+            "hotkey-overlay { skip-at-startup; }\n"
+            "gestures { hot-corners { off; }; }\n"
+        )
+        command = ["niri", "-c", str(config)]
+        socket_pattern = "niri.*.sock"
+        socket_variable = "NIRI_SOCKET"
+
+    env.pop("NIRI_SOCKET", None)
+    spawn(root, env, compositor, command)
+    sockets = wait_for(
+        lambda: list((root / "runtime").glob(socket_pattern)), f"nested {compositor}"
+    )
+    env[socket_variable] = str(sockets[0])
+    env["WAYLAND_DISPLAY"] = next(
+        path.name for path in (root / "runtime").glob("wayland-*") if path.is_socket()
+    )
+
+
+def launch(root, package, compositor):
     root.mkdir(parents=True, exist_ok=False)
     for name in ("runtime", "config/noctalia", "state", "data", "captures"):
         (root / name).mkdir(parents=True, exist_ok=True)
@@ -102,30 +133,16 @@ def launch(root, package):
         [{"name": "dbus", "pid": int(bus[1]), "start_time": start_time(int(bus[1]))}],
     )
     env["PATH"] = str(package / "bin") + ":" + env["PATH"]
-    env["XDG_CURRENT_DESKTOP"] = "niri"
     env["XDG_SESSION_TYPE"] = "wayland"
     env["PIPEWIRE_RUNTIME_DIR"] = env["XDG_RUNTIME_DIR"]
     env["PULSE_SERVER"] = "unix:" + str(root / "runtime/pulse/native")
-    config = root / "niri.kdl"
-    config.write_text(
-        "debug { dbus-interfaces-in-non-session-instances; }\n"
-        "layout { gaps 16; }\n"
-        "hotkey-overlay { skip-at-startup; }\n"
-        "gestures { hot-corners { off; }; }\n"
-    )
-    spawn(root, env, "niri", ["niri", "-c", str(config)])
-    sockets = wait_for(lambda: list((root / "runtime").glob("niri.*.sock")), "nested Niri")
-    env["NIRI_SOCKET"] = str(sockets[0])
-    env["WAYLAND_DISPLAY"] = next(
-        path.name
-        for path in (root / "runtime").glob("wayland-*")
-        if not path.name.endswith(".lock")
-    )
+    launch_compositor(root, env, compositor)
     write_json(root / "env.json", env)
     write_json(
         root / "identity.json",
         {
             "package": str(package),
+            "compositor": compositor,
             "revision": subprocess.check_output(
                 ["jj", "log", "-r", "@", "--no-graph", "-T", "commit_id"], text=True
             ),
@@ -201,11 +218,18 @@ recording_directory = "{root}/captures"
             str(root / "pattern.mp4"),
         ],
     )
+    if compositor == "umbriel":
+        windows_command = ["umbriel", "windows", "--json"]
+    else:
+        windows_command = ["niri", "msg", "--json", "windows"]
+        run(root, env, ["niri", "msg", "action", "close-overview"], "close-overview")
     wait_for(
-        lambda: json.loads(subprocess.check_output(["niri", "msg", "--json", "windows"], env=env)),
+        lambda: any(
+            window["app_id"] == "nocapture-test-pattern"
+            for window in json.loads(subprocess.check_output(windows_command, env=env))
+        ),
         "pattern window",
     )
-    run(root, env, ["niri", "msg", "action", "close-overview"], "close-overview")
     print(root)
 
 
@@ -283,12 +307,22 @@ def spectrum(root, env, file):
     print(json.dumps(levels))
 
 
+def pointer_size(env):
+    if env["XDG_CURRENT_DESKTOP"] == "umbriel":
+        outputs = json.loads(subprocess.check_output(["umbriel", "outputs", "--json"], env=env))
+        return next(output["logical_size"] for output in outputs if output["focused"])
+    return json.loads(
+        subprocess.check_output(["niri", "msg", "--json", "focused-output"], env=env)
+    )["logical"]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--instance", type=Path, required=True)
     commands = parser.add_subparsers(dest="command", required=True)
     launch_parser = commands.add_parser("launch")
     launch_parser.add_argument("--package", type=Path, default=os.getenv("NOCAPTURE_TEST_PACKAGE"))
+    launch_parser.add_argument("--compositor", choices=("niri", "umbriel"), default="niri")
     commands.add_parser("cleanup")
     commands.add_parser("doctor")
     execute = commands.add_parser("exec")
@@ -302,7 +336,7 @@ def main():
     args = parser.parse_args()
     root = args.instance.resolve()
     if args.command == "launch":
-        launch(root, args.package.resolve())
+        launch(root, args.package.resolve(), args.compositor)
         return
     if args.command == "cleanup":
         cleanup(root)
@@ -321,9 +355,7 @@ def main():
             raise ValueError("Snapshot name must be a plain filename")
         run(root, env, ["grim", str(root / args.name)], "snapshot-" + args.name)
     elif args.command == "pointer":
-        output = json.loads(
-            subprocess.check_output(["niri", "msg", "--json", "focused-output"], env=env)
-        )["logical"]
+        output = pointer_size(env)
         os.environ.update(env)
         pointer = Pointer(output["width"], output["height"])
         try:

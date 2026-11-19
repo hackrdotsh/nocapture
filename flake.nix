@@ -55,7 +55,7 @@
               test -s "$out/share/noctalia/plugins/nocapture/plugin.toml"
             '';
             meta = {
-              description = "Capture toolbar for Noctalia and Niri";
+              description = "Noctalia capture toolbar for Niri and Umbriel";
               homepage = "https://github.com/hackrdotsh/nocapture";
               license = pkgs.lib.licenses.mit;
               platforms = systems;

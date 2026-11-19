@@ -5,7 +5,7 @@ plugin_api = 24
 author = "hackrdotsh"
 license = "MIT"
 icon = "screenshot"
-description = "A screenshot and recording toolbar for Niri and Noctalia."
+description = "A Noctalia capture toolbar for Niri and Umbriel."
 dependencies = ["nocapture-engine"]
 
 [[setting]]
