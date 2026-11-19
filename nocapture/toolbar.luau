@@ -218,9 +218,9 @@ render = function()
       ui.button({ text = "Close", variant = "ghost", onClick = "onDismiss" }),
     }),
     ui.row({ gap = 8, align = "center" }, modes),
-    ui.row({ gap = 8, align = "center" }, options),
-    ui.row({ gap = 8, align = "center" }, effects),
-    ui.label({ text = hint, color = "on_surface_variant" }),
+    ui.row({ gap = 8, align = "center", visible = #options > 0 }, options),
+    ui.row({ gap = 8, align = "center", visible = #effects > 0 }, effects),
+    ui.label({ text = hint, color = "on_surface_variant", visible = hint ~= "" }),
     ui.row({ gap = 8, align = "center" }, {
       ui.label({ text = active and status or "", flexGrow = 1 }),
       ui.button({

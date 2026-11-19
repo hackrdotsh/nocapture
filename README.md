@@ -57,7 +57,7 @@ them automatically. The packaged plugin is also available at
 `result/share/noctalia/plugins/nocapture`. Register the parent directory as a path
 source if you want the built version rather than a live checkout.
 
-Noctalia v5 with plugin API 24 or newer is required; v4 is not supported.
+Noctalia v5.4.0 or newer (plugin API 42) is required.
 On Umbriel, the `umbriel` command must be on Noctalia's PATH. Window screenshots
 use `grim -T` to capture the selected window by ID, not a crop of the desktop.
 Region and display recording use GPU Screen Recorder's KMS capture and need its
