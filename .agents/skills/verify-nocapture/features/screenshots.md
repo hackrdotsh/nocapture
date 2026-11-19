@@ -10,7 +10,10 @@ or Window. For window captures, select the named test-pattern window.
 
 - Capture a region with the pointer drag helper. The PNG must match the selected
   geometry (slurp's inclusive endpoints may add one pixel).
-- Capture the display. It must contain the isolated desktop and no toolbar.
+- Select Display, press Capture, then click the intended screen. With two
+  outputs, move the pointer across them: only the hovered screen should remain
+  undimmed. The PNG must match the clicked screen with no picker or toolbar.
+  Repeat and press Esc; no PNG should be saved.
 - Capture a window with neither styling toggle, each toggle alone, and both.
   The raw capture must have no padding; styling must preserve central window
   pixels, add configured padding, use the fixture wallpaper, and render a soft

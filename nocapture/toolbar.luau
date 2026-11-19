@@ -73,7 +73,7 @@ render = function()
     )
   end
   local options = {}
-  if target == "display" or (target == "window" and kind == "screenshot") then
+  if target == "window" and kind == "screenshot" then
     table.insert(options, ui.label({ text = "Display" }))
     table.insert(
       options,
@@ -180,7 +180,9 @@ render = function()
     or status == "converting"
     or status == "selecting"
   local hint = ""
-  if target == "window" and kind ~= "screenshot" then
+  if target == "display" then
+    hint = "Select a screen"
+  elseif target == "window" and kind ~= "screenshot" then
     hint = "Select a window in the system picker. Match it to the audio application."
   end
   local formats = ui.row({ gap = 8, align = "center" }, {

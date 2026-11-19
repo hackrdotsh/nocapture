@@ -18,7 +18,9 @@ point is `nocapture-engine record window --format mp4` or the toolbar Video mode
 5. Repeat with `--format gif`. Verify multiple frames, configured maximum width,
    a loop, and no audio. Failed conversion must retain its source MP4.
 6. For region/display recordings repeat with a privileged KMS helper installed.
-   Without that prerequisite, mark the modes blocked and do not run sudo.
+   For Display, press Record and click the intended screen before recording
+   starts. Esc must cancel without starting the recorder. Without the helper,
+   mark live recording blocked and do not run sudo.
 
 Retain command logs, state transitions, frame-content checks, and output metadata.
 Stop only the recorded Nocapture worker. Keep separate fixture-process ownership

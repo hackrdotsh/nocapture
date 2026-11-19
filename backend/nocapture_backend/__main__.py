@@ -26,7 +26,11 @@ def parser() -> argparse.ArgumentParser:
     for name in ("screenshot", "record"):
         capture = commands.add_parser(name)
         capture.add_argument("target", choices=("region", "display", "window"))
-        capture.add_argument("--output", default="")
+        display = capture.add_mutually_exclusive_group()
+        display.add_argument("--output", default="")
+        display.add_argument(
+            "--pick-output", action="store_true", help="Pick a display interactively"
+        )
         capture.add_argument(
             "--directory",
             default=("~/Pictures/Nocapture" if name == "screenshot" else "~/Videos/Nocapture"),
@@ -57,7 +61,10 @@ def parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    args = parser().parse_args()
+    cli = parser()
+    args = cli.parse_args()
+    if getattr(args, "pick_output", False) and args.target != "display":
+        cli.error("--pick-output requires the display target")
     try:
         if args.command == "context":
             value = context()

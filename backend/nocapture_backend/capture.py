@@ -95,8 +95,10 @@ def reserve_path(directory: str, extension: str, prefix: str = "capture") -> Pat
     return path
 
 
-def select_region() -> str:
-    result = subprocess.run(["slurp", "-f", "%wx%h+%x+%y"], capture_output=True, text=True)
+def select_with_slurp(arguments: list[str], failure: str) -> str:
+    result = subprocess.run(
+        ["slurp", *arguments], stdin=subprocess.DEVNULL, capture_output=True, text=True
+    )
     if result.returncode:
         message = result.stderr.strip()
         if (
@@ -105,11 +107,28 @@ def select_region() -> str:
             and message.lower() in ("", "selection cancelled", "selection canceled")
         ):
             raise Cancelled()
-        raise RuntimeError(message or "Region selection failed.")
-    region = result.stdout.strip()
+        raise RuntimeError(message or failure)
+    return result.stdout.strip()
+
+
+def select_region() -> str:
+    region = select_with_slurp(["-f", "%wx%h+%x+%y"], "Region selection failed.")
     if not re.fullmatch(r"[1-9]\d*x[1-9]\d*\+-?\d+\+-?\d+", region):
         raise RuntimeError("The region picker returned invalid geometry.")
     return region
+
+
+def display_output(args) -> str:
+    if not args.pick_output:
+        return args.output or focused_output()
+    dim = "#00000080"
+    output = select_with_slurp(
+        ["-o", "-r", "-b", dim, "-B", dim, "-s", "#00000000", "-w", "0", "-f", "%l"],
+        "Screen selection failed.",
+    )
+    if not output:
+        raise RuntimeError("The screen picker returned no display name.")
+    return output
 
 
 def capture_window(window_id: str | None, source: Path) -> None:
@@ -158,7 +177,7 @@ def screenshot(args) -> dict:
             width, height, x, y = match.groups()
             run(["grim", "-g", f"{x},{y} {width}x{height}", str(source)])
         elif args.target == "display":
-            run(["grim", "-o", args.output or focused_output(), str(source)])
+            run(["grim", "-o", display_output(args), str(source)])
         else:
             capture_window(args.window_id, source)
         wallpaper = None

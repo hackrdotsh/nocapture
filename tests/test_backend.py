@@ -223,6 +223,7 @@ class Worker(unittest.TestCase):
         script = self.root / "gpu-screen-recorder"
         script.write_text(f"""#!{sys.executable}
 import shutil, signal, sys, time
+print(sys.argv[sys.argv.index("-w") + 1], flush=True)
 shutil.copyfile({str(self.video)!r}, sys.argv[sys.argv.index("-o") + 1])
 signal.signal(signal.SIGINT, lambda *_: sys.exit(0))
 while True: time.sleep(0.01)
@@ -250,7 +251,7 @@ while True: time.sleep(0.01)
             timeout=15,
         )
 
-    def start(self, output_format):
+    def start(self, output_format, *output_flags):
         process = subprocess.Popen(
             [
                 sys.executable,
@@ -258,8 +259,7 @@ while True: time.sleep(0.01)
                 "nocapture_backend",
                 "record",
                 "display",
-                "--output",
-                "DP-1",
+                *(output_flags or ("--output", "DP-1")),
                 "--directory",
                 str(self.root),
                 "--format",
@@ -308,6 +308,29 @@ while True: time.sleep(0.01)
         with Image.open(result["path"]) as image:
             self.assertGreater(image.n_frames, 1)
         self.assertFalse(list(self.root.glob("*.recording.mp4")))
+
+    def test_recording_uses_the_clicked_screen(self):
+        picker = self.root / "slurp"
+        picker.write_text("#!/bin/sh\nprintf '%s\\n' HDMI-A-2\n")
+        picker.chmod(0o755)
+        process = self.start("mp4", "--pick-output")
+        self.assertEqual(
+            next(self.root.glob("nocapture-*/recording.log")).read_text(), "HDMI-A-2\n"
+        )
+        self.assertEqual(self.cli("stop").returncode, 0)
+        stdout, stderr = process.communicate(timeout=10)
+        self.assertEqual(process.returncode, 0, stderr)
+        self.assertEqual(json.loads(stdout)["state"], "saved")
+
+    def test_cancelling_screen_selection_does_not_start_a_recording(self):
+        picker = self.root / "slurp"
+        picker.write_text("#!/bin/sh\necho 'selection cancelled' >&2\nexit 1\n")
+        picker.chmod(0o755)
+        result = self.cli("record", "display", "--pick-output", "--directory", str(self.root))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["state"], "cancelled")
+        self.assertFalse(list(self.root.glob("nocapture-*/recording.log")))
+        self.assertFalse(list(self.root.glob("recording-*")))
 
     def test_conversion_failure_keeps_source_video(self):
         script = self.root / "ffmpeg"

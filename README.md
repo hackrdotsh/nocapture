@@ -20,6 +20,8 @@ Select **Screenshot**, **Video**, or **GIF**, then a target. For window screensh
 choose a window from the list. For window recordings, choose the window in the
 system picker; its contents are captured rather than a rectangle of the desktop.
 Moving or covering it does not intentionally change the source to other windows.
+For display captures, press **Capture** or **Record**, then click the screen you
+want. The other screens dim as you move the pointer. Press Esc to cancel.
 
 **Application audio is explicit:** choose the application whose audio belongs to
 the window you select. The backend captures that application's audio, not the
@@ -124,6 +126,7 @@ nocapture status          # JSON state: starting/recording/stopping/converting/s
 nocapture doctor          # Check shell/plugin/engine presence, not capture permissions
 
 nocapture-engine screenshot window --wallpaper --shadow
+nocapture-engine screenshot display --pick-output
 nocapture-engine record region --audio system
 nocapture-engine record display --output eDP-1 --format gif
 nocapture-engine record window --audio application --application 'Firefox'

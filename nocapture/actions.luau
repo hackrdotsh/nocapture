@@ -16,7 +16,9 @@ function M.command(options)
     return nil
   end
   local command = { "nocapture-engine", kind == "screenshot" and "screenshot" or "record", target }
-  if options.output and options.output ~= "" then
+  if target == "display" then
+    table.insert(command, "--pick-output")
+  elseif target == "window" and options.output and options.output ~= "" then
     table.insert(command, "--output")
     table.insert(command, options.output)
   end

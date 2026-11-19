@@ -33,10 +33,12 @@ class Umbriel(unittest.TestCase):
                 stdout = json.dumps(OUTPUTS)
             case ["gpu-screen-recorder", "--list-application-audio"]:
                 stdout = "Music\n"
+            case ["slurp", "-o", "-r", *flags] if flags[-2:] == ["-f", "%l"]:
+                stdout = "HDMI-A-1\n"
             case ["grim", "-T", window_id, path] if window_id == WINDOW_ID:
                 Image.new("RGB", (20, 20), "red").save(path)
                 stdout = ""
-            case ["grim", "-o", "DP-1", path]:
+            case ["grim", "-o", "DP-1" | "HDMI-A-1", path]:
                 Image.new("RGB", (20, 20), "red").save(path)
                 stdout = ""
             case ["grim", "-T", "closed", _]:
@@ -83,6 +85,17 @@ class Umbriel(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             args = parser().parse_args(["screenshot", "display", "--directory", directory])
             self.assertTrue(Path(screenshot(args)["path"]).is_file())
+
+    def test_display_capture_uses_the_clicked_screen_not_the_focused_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args = parser().parse_args(
+                ["screenshot", "display", "--pick-output", "--directory", directory]
+            )
+            self.assertTrue(Path(screenshot(args)["path"]).is_file())
+        commands = [call.args[0] for call in self.commands.call_args_list]
+        self.assertEqual(
+            [args[:3] for args in commands[:2]], [["slurp", "-o", "-r"], ["grim", "-o", "HDMI-A-1"]]
+        )
 
 
 class Niri(unittest.TestCase):

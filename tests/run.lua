@@ -188,6 +188,19 @@ test("window screenshot uses the selected window", function()
   assert(h.calls[3]:find("--window-id 42", 1, true))
 end)
 
+test("display modes open the screen picker instead of passing a connector", function()
+  for _, format in ipairs({ "Screenshot", "Video", "GIF" }) do
+    local h = host()
+    h:click(format)
+    h:click("Display")
+    h:find("label", "Select a screen")
+    h:click(format == "Screenshot" and "Capture" or "Record")
+    h:complete()
+    assert(h.calls[3]:find("display --pick-output", 1, true))
+    assert(not h.calls[3]:find("--output", 1, true))
+  end
+end)
+
 test("video audio choice and GIF mode reach the backend", function()
   local h = host()
   h:click("Video")

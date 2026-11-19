@@ -12,7 +12,7 @@ from pathlib import Path
 from .capture import (
     Cancelled,
     application_names,
-    focused_output,
+    display_output,
     read_json,
     record_command,
     reserve_path,
@@ -97,8 +97,8 @@ def _record_owned(args, directory: Path) -> dict:
             raise RuntimeError(
                 "The selected application has no audio stream. Play audio and retry."
             )
-        if args.target == "display" and not args.output:
-            args.output = focused_output()
+        if args.target == "display":
+            args.output = display_output(args)
         region = select_region() if args.target == "region" else None
         destination = reserve_path(args.directory, args.format, "recording")
         source = destination.with_name(f".{destination.stem}.recording.mp4")
