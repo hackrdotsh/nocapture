@@ -190,6 +190,7 @@ render = function()
       ui.label({ text = "Nocapture", fontWeight = "bold", flexGrow = 1 }),
       ui.button({
         text = "Screenshot",
+        glyph = "screenshot",
         selected = kind == "screenshot",
         enabled = not busy,
         onClick = function()
@@ -198,6 +199,7 @@ render = function()
       }),
       ui.button({
         text = "Video",
+        glyph = "video",
         selected = kind == "record",
         enabled = not busy,
         onClick = function()
@@ -206,6 +208,7 @@ render = function()
       }),
       ui.button({
         text = "GIF",
+        glyph = "photo-video",
         selected = kind == "gif",
         enabled = not busy,
         onClick = function()
