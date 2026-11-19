@@ -187,7 +187,6 @@ render = function()
   end
   panel.render(ui.column({ gap = 12, padding = 12 }, {
     ui.row({ gap = 8, align = "center" }, {
-      ui.label({ text = "Nocapture", fontWeight = "bold", flexGrow = 1 }),
       ui.button({
         text = "Screenshot",
         glyph = "screenshot",
@@ -215,6 +214,7 @@ render = function()
           setKind("gif")
         end,
       }),
+      ui.spacer({ flexGrow = 1 }),
       ui.button({ text = "Close", variant = "ghost", onClick = "onDismiss" }),
     }),
     ui.row({ gap = 8, align = "center" }, modes),
