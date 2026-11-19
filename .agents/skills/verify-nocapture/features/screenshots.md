@@ -4,7 +4,7 @@
 
 Launch the isolated fixture and run `doctor`. Keep its parent window visible.
 Open `nocapture show` through the harness. Select Screenshot and Region, Display,
-or Window. For window captures, select the named test-pattern window.
+or Window. For window captures, press Capture and click the test-pattern window.
 
 ## Drive and verify
 
@@ -18,6 +18,7 @@ or Window. For window captures, select the named test-pattern window.
   The raw capture must have no padding; styling must preserve central window
   pixels, add configured padding, use the fixture wallpaper, and render a soft
   shadow with transparent margins when there is no wallpaper.
+  Repeat and press Esc in the picker; no PNG should be saved.
 - Compare `wl-paste --type image/png` with the saved file, byte for byte. Under
   `exec`, redirect the clipboard to a file inside a shell command because the
   harness decodes stdout as text.

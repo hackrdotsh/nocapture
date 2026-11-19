@@ -18,9 +18,8 @@ function M.command(options)
   local command = { "nocapture-engine", kind == "screenshot" and "screenshot" or "record", target }
   if target == "display" then
     table.insert(command, "--pick-output")
-  elseif target == "window" and options.output and options.output ~= "" then
-    table.insert(command, "--output")
-    table.insert(command, options.output)
+  elseif target == "window" and kind == "screenshot" then
+    table.insert(command, "--pick-window")
   end
   if options.directory and options.directory ~= "" then
     table.insert(command, "--directory")
@@ -28,10 +27,6 @@ function M.command(options)
   end
   if kind == "screenshot" then
     if target == "window" then
-      if options.windowId then
-        table.insert(command, "--window-id")
-        table.insert(command, tostring(options.windowId))
-      end
       if options.wallpaper then
         table.insert(command, "--wallpaper")
       end

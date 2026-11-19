@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from nocapture_backend.__main__ import parser
-from nocapture_backend.capture import context, screenshot
+from nocapture_backend.capture import Cancelled, context, screenshot
 from PIL import Image
 
 WINDOW_ID = "a4e60eb029d14c7f8e324281956d312c"
@@ -20,13 +20,28 @@ OUTPUTS = [
 
 class Umbriel(unittest.TestCase):
     def setUp(self):
+        self.windows = [
+            dict(
+                WINDOW,
+                output="DP-2",
+                x=-200,
+                y=20,
+                w=160,
+                h=100,
+                visible=True,
+                pinned=False,
+                fullscreen=False,
+                floating=False,
+                scratchpad="",
+            )
+        ]
         self.enterContext(patch.dict(os.environ, {"UMBRIEL_SOCKET": "/fixture.sock"}, clear=True))
         self.commands = self.enterContext(patch("subprocess.run", side_effect=self.run_command))
 
     def run_command(self, args, **kwargs):
         match args:
             case ["umbriel", "windows", "--json"]:
-                stdout = json.dumps([WINDOW])
+                stdout = json.dumps(self.windows)
             case ["umbriel", "focused-window", "--json"]:
                 stdout = json.dumps(WINDOW)
             case ["umbriel", "outputs", "--json"]:
@@ -35,6 +50,8 @@ class Umbriel(unittest.TestCase):
                 stdout = "Music\n"
             case ["slurp", "-o", "-r", *flags] if flags[-2:] == ["-f", "%l"]:
                 stdout = "HDMI-A-1\n"
+            case ["slurp", "-p", *flags] if flags[-2:] == ["-f", "%x %y %o"]:
+                stdout = "-150 40 DP-2\n"
             case ["grim", "-T", window_id, path] if window_id == WINDOW_ID:
                 Image.new("RGB", (20, 20), "red").save(path)
                 stdout = ""
@@ -81,6 +98,30 @@ class Umbriel(unittest.TestCase):
             self.assertEqual(list(Path(directory).iterdir()), [])
         self.assertEqual(len(self.commands.call_args_list), 1)
 
+    def test_window_picker_uses_clicked_output_and_ignores_hidden_windows(self):
+        self.windows.extend(
+            [
+                dict(self.windows[0], id="hidden", visible=False),
+                dict(self.windows[0], id="other-output", output="DP-1"),
+            ]
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            args = parser().parse_args(
+                ["screenshot", "window", "--pick-window", "--directory", directory]
+            )
+            self.assertTrue(Path(screenshot(args)["path"]).is_file())
+        self.assertEqual(self.commands.call_args_list[2].args[0][:3], ["grim", "-T", WINDOW_ID])
+
+    def test_ambiguous_window_click_leaves_no_capture(self):
+        self.windows.append(dict(self.windows[0], id="overlap"))
+        with tempfile.TemporaryDirectory() as directory:
+            args = parser().parse_args(
+                ["screenshot", "window", "--pick-window", "--directory", directory]
+            )
+            with self.assertRaisesRegex(RuntimeError, "Windows overlap"):
+                screenshot(args)
+            self.assertEqual(list(Path(directory).iterdir()), [])
+
     def test_display_capture_defaults_to_focused_output(self):
         with tempfile.TemporaryDirectory() as directory:
             args = parser().parse_args(["screenshot", "display", "--directory", directory])
@@ -102,6 +143,8 @@ class Niri(unittest.TestCase):
     def test_window_capture_keeps_niri_ipc_in_nested_session(self):
         def run_command(args, **kwargs):
             match args:
+                case ["niri", "msg", "--json", "pick-window"]:
+                    return subprocess.CompletedProcess(args, 0, '{"id": 42}', "")
                 case [
                     "niri",
                     "msg",
@@ -127,8 +170,25 @@ class Niri(unittest.TestCase):
             patch.dict(os.environ, env, clear=True),
             patch("subprocess.run", side_effect=run_command),
         ):
+            for flags in (["--window-id", "42"], ["--pick-window"]):
+                args = parser().parse_args(
+                    ["screenshot", "window", "--directory", directory, *flags]
+                )
+                with Image.open(screenshot(args)["path"]) as image:
+                    self.assertEqual(image.getpixel((0, 0)), (0, 0, 255))
+
+    def test_cancelling_native_window_picker_leaves_no_capture(self):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.dict(os.environ, {"XDG_CURRENT_DESKTOP": "niri"}, clear=True),
+            patch(
+                "subprocess.run", return_value=subprocess.CompletedProcess([], 0, "null", "")
+            ) as command,
+        ):
             args = parser().parse_args(
-                ["screenshot", "window", "--window-id", "42", "--directory", directory]
+                ["screenshot", "window", "--pick-window", "--directory", directory]
             )
-            with Image.open(screenshot(args)["path"]) as image:
-                self.assertEqual(image.getpixel((0, 0)), (0, 0, 255))
+            with self.assertRaises(Cancelled):
+                screenshot(args)
+            self.assertEqual(list(Path(directory).iterdir()), [])
+            command.assert_called_once()

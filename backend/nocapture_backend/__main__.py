@@ -36,7 +36,11 @@ def parser() -> argparse.ArgumentParser:
             default=("~/Pictures/Nocapture" if name == "screenshot" else "~/Videos/Nocapture"),
         )
         if name == "screenshot":
-            capture.add_argument("--window-id")
+            window = capture.add_mutually_exclusive_group()
+            window.add_argument("--window-id")
+            window.add_argument(
+                "--pick-window", action="store_true", help="Click a window to capture"
+            )
             capture.add_argument("--wallpaper", action="store_true")
             capture.add_argument("--shadow", action="store_true")
             capture.add_argument("--padding", type=bounded(0, 512), default=96)
@@ -65,6 +69,8 @@ def main() -> int:
     args = cli.parse_args()
     if getattr(args, "pick_output", False) and args.target != "display":
         cli.error("--pick-output requires the display target")
+    if getattr(args, "pick_window", False) and args.target != "window":
+        cli.error("--pick-window requires the window target")
     try:
         if args.command == "context":
             value = context()

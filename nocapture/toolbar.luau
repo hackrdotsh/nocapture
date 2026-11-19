@@ -4,9 +4,7 @@ local target = "region"
 local audio = "none"
 local wallpaper = false
 local shadow = false
-local context = { windows = {}, outputs = {}, applications = {} }
-local outputIndex = 1
-local windowIndex = 1
+local context = { applications = {} }
 local applicationIndex = 1
 local busy = false
 local generation = 0
@@ -24,7 +22,7 @@ local function errorMessage(message)
   noctalia.notifyError("Nocapture", message)
 end
 
-local function execute(command, callback)
+local function execute(command, callback, timeout)
   local accepted = noctalia.runAsync(command, function(result)
     if result.exitCode ~= 0 then
       local message = result.stderr
@@ -35,7 +33,7 @@ local function execute(command, callback)
     elseif callback then
       callback(result)
     end
-  end)
+  end, timeout)
   if not accepted then
     errorMessage("Could not launch nocapture-engine. Install the Nocapture package.")
   end
@@ -73,42 +71,7 @@ render = function()
     )
   end
   local options = {}
-  if target == "window" and kind == "screenshot" then
-    table.insert(options, ui.label({ text = "Display" }))
-    table.insert(
-      options,
-      ui.select({
-        options = context.outputs,
-        selectedIndex = outputIndex - 1,
-        enabled = not busy,
-        width = 170,
-        onChange = function(value)
-          outputIndex = tonumber(value) + 1
-          render()
-        end,
-      })
-    )
-  end
-  if target == "window" and kind == "screenshot" then
-    local labels = {}
-    for _, window in ipairs(context.windows) do
-      table.insert(labels, window.title or window.app_id or "Window")
-    end
-    table.insert(options, ui.label({ text = "Window" }))
-    table.insert(
-      options,
-      ui.select({
-        options = labels,
-        selectedIndex = windowIndex - 1,
-        enabled = not busy,
-        width = 300,
-        onChange = function(value)
-          windowIndex = tonumber(value) + 1
-          render()
-        end,
-      })
-    )
-  elseif kind == "record" then
+  if kind == "record" then
     local labels = target == "window" and { "No audio", "Application audio" }
       or { "No audio", "System audio", "Microphone", "System + microphone" }
     local values = target == "window" and { "none", "application" }
@@ -182,8 +145,12 @@ render = function()
   local hint = ""
   if target == "display" then
     hint = "Select a screen"
-  elseif target == "window" and kind ~= "screenshot" then
-    hint = "Select a window in the system picker. Match it to the audio application."
+  elseif target == "window" then
+    if kind == "screenshot" then
+      hint = "Select a window"
+    else
+      hint = "Select a window in the system picker. Match it to the audio application."
+    end
   end
   local formats = ui.row({ gap = 8, align = "center" }, {
     ui.button({
@@ -281,19 +248,7 @@ function onOpen()
       return
     end
     context = value
-    outputIndex = 1
-    windowIndex = 1
     applicationIndex = 1
-    for index, name in ipairs(context.outputs) do
-      if name == context.focused_output then
-        outputIndex = index
-      end
-    end
-    for index, window in ipairs(context.windows) do
-      if window.is_focused then
-        windowIndex = index
-      end
-    end
     render()
   end)
   update()
@@ -313,14 +268,11 @@ function onCapture()
   if busy then
     return
   end
-  local window = context.windows[windowIndex]
   local command = actions.command({
     kind = kind,
     target = target,
     audio = audio,
     application = context.applications[applicationIndex],
-    output = context.outputs[outputIndex],
-    windowId = window and window.id,
     wallpaper = wallpaper,
     shadow = shadow,
     directory = noctalia.getConfig(
@@ -342,6 +294,7 @@ function onCapture()
   busy = true
   closingForCapture = true
   local token = generation
+  local timeout = kind == "screenshot" and target == "window" and 60000 or nil
   panel.close()
   local accepted = noctalia.runAsync({ "sleep", "0.25" }, function(result)
     if token ~= generation then
@@ -357,7 +310,7 @@ function onCapture()
       if value and value.path and (value.state == nil or value.state == "saved") then
         noctalia.notify("Capture saved", value.path)
       end
-    end)
+    end, timeout)
   end)
   if not accepted then
     errorMessage("Could not start capture.")

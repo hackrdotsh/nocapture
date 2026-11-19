@@ -151,16 +151,15 @@ test("window recording requires isolated application audio or silence", function
   equal(value[9], "Music app")
 end)
 
-test("wallpaper, shadow, and exact window id are passed without shell parsing", function()
+test("window picking preserves wallpaper and shadow settings", function()
   local value = command(actions.command({
     kind = "screenshot",
     target = "window",
-    windowId = 42,
     wallpaper = true,
     shadow = true,
     padding = 80,
   }))
-  assert(value:find("--window-id 42 --wallpaper --shadow --padding 80", 1, true))
+  assert(value:find("--pick-window --wallpaper --shadow --padding 80", 1, true))
 end)
 
 test("opening only reads context and status", function()
@@ -180,12 +179,15 @@ test("capture closes first and prevents duplicate clicks", function()
   assert(h.calls[3]:find("nocapture-engine screenshot region", 1, true))
 end)
 
-test("window screenshot uses the selected window", function()
+test("window screenshot opens a click picker instead of passing a window ID", function()
   local h = host()
   h:click("Window")
+  h:find("label", "Select a window")
   h:click("Capture")
   h:complete()
-  assert(h.calls[3]:find("--window-id 42", 1, true))
+  assert(h.calls[3]:find("window --pick-window", 1, true))
+  assert(not h.calls[3]:find("--window-id", 1, true))
+  assert(not h.calls[3]:find("--output", 1, true))
 end)
 
 test("display modes open the screen picker instead of passing a connector", function()

@@ -17,7 +17,8 @@ background and an optional **macOS-inspired soft shadow**. Shadow-only exports
 retain transparent space around the window. Padding is configurable.
 
 Select **Screenshot**, **Video**, or **GIF**, then a target. For window screenshots,
-choose a window from the list. For window recordings, choose the window in the
+press **Capture**, then click the window. On Umbriel, click an uncovered area if
+overlapping windows make the target ambiguous. For window recordings, choose the window in the
 system picker; its contents are captured rather than a rectangle of the desktop.
 Moving or covering it does not intentionally change the source to other windows.
 For display captures, press **Capture** or **Record**, then click the screen you
@@ -126,6 +127,7 @@ nocapture status          # JSON state: starting/recording/stopping/converting/s
 nocapture doctor          # Check shell/plugin/engine presence, not capture permissions
 
 nocapture-engine screenshot window --wallpaper --shadow
+nocapture-engine screenshot window --pick-window
 nocapture-engine screenshot display --pick-output
 nocapture-engine record region --audio system
 nocapture-engine record display --output eDP-1 --format gif

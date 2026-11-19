@@ -131,8 +131,57 @@ def display_output(args) -> str:
     return output
 
 
-def capture_window(window_id: str | None, source: Path) -> None:
-    umbriel = is_umbriel()
+def select_umbriel_window() -> dict:
+    point = select_with_slurp(
+        ["-p", "-b", "#00000000", "-w", "0", "-f", "%x %y %o"],
+        "Window selection failed.",
+    )
+    match = re.fullmatch(r"(-?\d+) (-?\d+) (.+)", point)
+    if not match or match[3] == "<unknown>":
+        raise RuntimeError("The window picker returned an invalid screen position.")
+    x, y = int(match[1]), int(match[2])
+    output = match[3]
+    candidates = [
+        window
+        for window in compositor_json("windows", True)
+        if window["visible"]
+        and window["id"]
+        and window["output"] == output
+        and window["x"] <= x < window["x"] + window["w"]
+        and window["y"] <= y < window["y"] + window["h"]
+    ]
+    if not candidates:
+        raise RuntimeError("No window there. Click inside a window to capture it.")
+
+    # Umbriel reports window bounds but not the stacking order within a layer.
+    fullscreen = any(window["fullscreen"] for window in candidates)
+
+    def layer(window):
+        if window["pinned"]:
+            return 4
+        if window["fullscreen"] or (fullscreen and window["floating"] and not window["scratchpad"]):
+            return 3
+        if window["scratchpad"]:
+            return 2
+        return int(window["floating"])
+
+    top_layer = max(map(layer, candidates))
+    targets = [window for window in candidates if layer(window) == top_layer]
+    if len(targets) != 1:
+        raise RuntimeError("Windows overlap here. Click an uncovered part of the window.")
+    return targets[0]
+
+
+def select_window(umbriel: bool) -> dict:
+    if umbriel:
+        return select_umbriel_window()
+    window = json.loads(run(["niri", "msg", "--json", "pick-window"]).stdout)
+    if not window:
+        raise Cancelled()
+    return window
+
+
+def capture_window(window_id: str | None, source: Path, umbriel: bool) -> None:
     if window_id is None:
         window = compositor_json("focused-window", umbriel)
         if not window:
@@ -171,6 +220,7 @@ def screenshot(args) -> dict:
     os.close(descriptor)
     source = Path(name)
     try:
+        picked_window = None
         if args.target == "region":
             geometry = select_region()
             match = re.fullmatch(r"(\d+)x(\d+)\+(-?\d+)\+(-?\d+)", geometry)
@@ -179,10 +229,26 @@ def screenshot(args) -> dict:
         elif args.target == "display":
             run(["grim", "-o", display_output(args), str(source)])
         else:
-            capture_window(args.window_id, source)
+            umbriel = is_umbriel()
+            if args.pick_window:
+                picked_window = select_window(umbriel)
+            window_id = str(picked_window["id"]) if picked_window else args.window_id
+            capture_window(window_id, source, umbriel)
         wallpaper = None
         if args.wallpaper:
-            output = args.output or focused_output()
+            output = args.output
+            if not output and picked_window:
+                output = picked_window.get("output")
+                if not output and not umbriel:
+                    output = next(
+                        (
+                            workspace["output"]
+                            for workspace in compositor_json("workspaces", False)
+                            if workspace["id"] == picked_window["workspace_id"]
+                        ),
+                        None,
+                    )
+            output = output or focused_output()
             value = run(["noctalia", "msg", "wallpaper-get", output], timeout=10).stdout.strip()
             wallpaper = Path(value).expanduser()
             if not wallpaper.is_file():
