@@ -74,10 +74,8 @@ def main() -> int:
         cli.error("--pick-output requires the display target")
     if getattr(args, "pick_window", False) and args.target != "window":
         cli.error("--pick-window requires the window target")
-    if getattr(args, "as_shown", False) and (
-        args.target != "window" or args.wallpaper or args.shadow
-    ):
-        cli.error("--as-shown requires a window screenshot without wallpaper or shadow styling")
+    if getattr(args, "as_shown", False) and args.target != "window":
+        cli.error("--as-shown requires the window target")
     try:
         if args.command == "context":
             value = context()

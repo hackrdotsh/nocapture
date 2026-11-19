@@ -27,7 +27,7 @@ function M.command(options)
   end
   if kind == "screenshot" then
     if target == "window" then
-      if options.asShown and not options.wallpaper and not options.shadow then
+      if options.asShown then
         table.insert(command, "--as-shown")
       end
       if options.wallpaper then

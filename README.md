@@ -16,11 +16,11 @@ Window screenshots can include the **current Noctalia wallpaper** as a padded
 background and an optional **macOS-inspired soft shadow**. Shadow-only exports
 retain transparent space around the window. Padding is configurable.
 
-On Umbriel, **As shown on screen** keeps the visible backdrop through translucent
-windows, including blur. It captures the screen within the window's bounds, so
-overlapping content can appear and the backdrop is baked into the PNG. Turn it
-off for a window-only capture. Wallpaper and shadow styling use the isolated
-window instead.
+On Umbriel, toolbar window screenshots keep the visible backdrop through
+translucent windows, including blur. **Wallpaper** adds a background around the
+captured window, and **Window shadow** adds a shadow without changing the pixels
+inside it. Overlapping content can appear because the visible backdrop is baked
+into the PNG. For an isolated capture, use the CLI without `--as-shown`.
 
 Select **Screenshot**, **Video**, or **GIF**, then a target. For window screenshots,
 press **Capture**, then click the window. On Umbriel, click an uncovered area if

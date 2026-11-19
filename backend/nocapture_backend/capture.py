@@ -243,7 +243,7 @@ def screenshot(args) -> dict:
     os.close(descriptor)
     source = Path(name)
     try:
-        picked_window = None
+        selected_window = None
         if args.target == "region":
             geometry = select_region()
             match = re.fullmatch(r"(\d+)x(\d+)\+(-?\d+)\+(-?\d+)", geometry)
@@ -256,11 +256,10 @@ def screenshot(args) -> dict:
             if args.as_shown and not umbriel:
                 raise RuntimeError("Capturing a window as shown is only available on Umbriel.")
             if args.pick_window:
-                picked_window = select_window(umbriel)
+                selected_window = select_window(umbriel)
             if args.as_shown:
-                window = picked_window
-                if not window and args.window_id:
-                    window = next(
+                if not selected_window and args.window_id:
+                    selected_window = next(
                         (
                             entry
                             for entry in compositor_json("windows", True)
@@ -268,25 +267,25 @@ def screenshot(args) -> dict:
                         ),
                         None,
                     )
-                elif not window:
-                    window = compositor_json("focused-window", True)
-                if not window:
+                elif not selected_window:
+                    selected_window = compositor_json("focused-window", True)
+                if not selected_window:
                     raise RuntimeError("No window to capture.")
-                capture_window_as_shown(window, source)
+                capture_window_as_shown(selected_window, source)
             else:
-                window_id = str(picked_window["id"]) if picked_window else args.window_id
+                window_id = str(selected_window["id"]) if selected_window else args.window_id
                 capture_window(window_id, source, umbriel)
         wallpaper = None
         if args.wallpaper:
             output = args.output
-            if not output and picked_window:
-                output = picked_window.get("output")
+            if not output and selected_window:
+                output = selected_window.get("output")
                 if not output and not umbriel:
                     output = next(
                         (
                             workspace["output"]
                             for workspace in compositor_json("workspaces", False)
-                            if workspace["id"] == picked_window["workspace_id"]
+                            if workspace["id"] == selected_window["workspace_id"]
                         ),
                         None,
                     )
