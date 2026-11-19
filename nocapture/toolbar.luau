@@ -214,8 +214,6 @@ render = function()
           setKind("gif")
         end,
       }),
-      ui.spacer({ flexGrow = 1 }),
-      ui.button({ text = "Close", variant = "ghost", onClick = "onDismiss" }),
     }),
     ui.row({ gap = 8, align = "center" }, modes),
     ui.row({ gap = 8, align = "center", visible = #options > 0 }, options),
@@ -305,12 +303,6 @@ function onClose()
   end
   generation = generation + 1
   busy = false
-end
-
-function onDismiss()
-  generation = generation + 1
-  busy = false
-  panel.close()
 end
 
 function onCapture()
