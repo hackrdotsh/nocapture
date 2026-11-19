@@ -182,8 +182,6 @@ render = function()
   local hint = ""
   if target == "window" and kind ~= "screenshot" then
     hint = "Select a window in the system picker. Match it to the audio application."
-  elseif kind == "gif" then
-    hint = "GIFs have no audio."
   end
   local formats = ui.row({ gap = 8, align = "center" }, {
     ui.button({
